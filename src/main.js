@@ -124,7 +124,7 @@ authBadge.addEventListener('click', async () => {
     authLabel.textContent = 'Connect'
     console.error('[Auth]', err)
   }
-}
+})
 
 // ─── Boot ────────────────────────────────────────────────────────
 async function boot() {
