@@ -1,7 +1,8 @@
 /**
- * Home tab — portfolio overview (v2)
+ * Home tab (v3) — tool launcher + wallet overview
  */
 import { sb } from '../supabase.js'
+import { navigate } from '../main.js'
 
 export async function renderHome(el, state) {
   if (!state.address) {
@@ -66,16 +67,18 @@ export async function renderHome(el, state) {
   const shortAddr = state.address.slice(0, 14) + '…' + state.address.slice(-8)
 
   el.innerHTML = `
+    <!-- Wallet hero -->
     <div class="hero-card">
       <div class="balance-label">CKB Balance</div>
       <div style="display:flex;align-items:baseline;gap:0.3rem">
         <span class="balance-big" id="ckb-balance">—</span>
         <span class="balance-unit">CKB</span>
       </div>
-      <div class="hero-address" id="ckb-addr" title="${state.address}">${shortAddr}</div>
+      <div class="hero-address" title="${state.address}">${shortAddr}</div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.75rem">
+    <!-- Stats row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:1rem">
       <div class="card" style="margin:0;text-align:center;padding:0.875rem">
         <div class="card-title" style="margin-bottom:0.4rem">Member</div>
         <div style="font-size:1.4rem;font-weight:800;color:var(--accent)" id="member-num">—</div>
@@ -86,43 +89,65 @@ export async function renderHome(el, state) {
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">Recent Transactions</div>
-      <div id="tx-list"><div class="spinner" style="margin:1rem auto"></div></div>
+    <!-- Tool grid -->
+    <div class="section-header">Tools</div>
+    <div class="tool-grid">
+      <button class="tool-btn" data-tab="chain">
+        <div class="tool-icon">⛓️</div>
+        <div class="tool-label">Chain</div>
+        <div class="tool-sub">CKB · BTC · Fiber</div>
+      </button>
+      <button class="tool-btn" data-tab="research">
+        <div class="tool-icon">🔬</div>
+        <div class="tool-label">Research</div>
+        <div class="tool-sub">Ecosystem findings</div>
+      </button>
+      <button class="tool-btn" data-tab="lounge">
+        <div class="tool-icon">🛋️</div>
+        <div class="tool-label">Lounge</div>
+        <div class="tool-sub">Community chat</div>
+      </button>
+      <button class="tool-btn" data-tab="members">
+        <div class="tool-icon">👾</div>
+        <div class="tool-label">Members</div>
+        <div class="tool-sub">Founding DOBs</div>
+      </button>
+      <button class="tool-btn" data-href="https://explorer.nervos.org/address/${state.address}">
+        <div class="tool-icon">🔍</div>
+        <div class="tool-label">Explorer</div>
+        <div class="tool-sub">View on-chain</div>
+      </button>
+      <button class="tool-btn" data-tab="settings">
+        <div class="tool-icon">⚙️</div>
+        <div class="tool-label">Settings</div>
+        <div class="tool-sub">Node config</div>
+      </button>
     </div>
 
+    <!-- Recent txs -->
+    <div class="section-header" style="margin-top:0.25rem">Recent Activity</div>
     <div class="card">
-      <div class="card-title">Quick Links</div>
-      <div class="stat-row">
-        <span class="stat-label">🌐 Website</span>
-        <a href="https://wyltekindustries.com" target="_blank" style="color:var(--accent);font-size:0.82rem;font-weight:500">Open ↗</a>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">💻 GitHub</span>
-        <a href="https://github.com/toastmanAu" target="_blank" style="color:var(--accent);font-size:0.82rem;font-weight:500">toastmanAu ↗</a>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">🔍 Explorer</span>
-        <a href="https://explorer.nervos.org/address/${state.address}" target="_blank" style="color:var(--accent);font-size:0.82rem;font-weight:500">View ↗</a>
+      <div id="tx-list">
+        <div style="text-align:center;padding:1rem;color:var(--text3);font-size:0.82rem">
+          Connect to Wyltek Light Client in Settings to see transaction history
+        </div>
       </div>
     </div>
   `
 
-  // Load data in parallel
-  await Promise.allSettled([loadBalance(state), loadMemberStatus(state), loadTxHistory(state)])
-}
-
-async function loadBalance(state) {
-  // Placeholder — wire to light client once Worker is deployed
-  try {
-    const res = await fetch('https://mainnet.ckbapp.dev/rpc', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'get_tip_block_number', params: [] }),
+  // Tool button handlers
+  el.querySelectorAll('.tool-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.tab) {
+        navigate(btn.dataset.tab)
+        window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
+      } else if (btn.dataset.href) {
+        window.Telegram?.WebApp?.openLink(btn.dataset.href)
+      }
     })
-    // Balance display placeholder
-    document.getElementById('ckb-balance').textContent = '—'
-  } catch {}
+  })
+
+  await Promise.allSettled([loadMemberStatus(state)])
 }
 
 async function loadMemberStatus(state) {
@@ -131,23 +156,9 @@ async function loadMemberStatus(state) {
       .select('member_number, spore_id')
       .eq('ckb_address', state.address)
       .single()
-    const el = document.getElementById('member-num')
+    const numEl = document.getElementById('member-num')
     const dobEl = document.getElementById('dob-count')
-    if (el) el.textContent = data?.member_number ? `#${data.member_number}` : '—'
+    if (numEl) numEl.textContent = data?.member_number ? `#${data.member_number}` : '—'
     if (dobEl) dobEl.textContent = data?.spore_id ? '1' : '0'
-  } catch {
-    const el = document.getElementById('member-num')
-    if (el) el.textContent = '—'
-  }
-}
-
-async function loadTxHistory(state) {
-  const el = document.getElementById('tx-list')
-  if (!el) return
-  // Placeholder until light client Worker is live
-  el.innerHTML = `
-    <div style="text-align:center;padding:1rem;color:var(--text3);font-size:0.82rem">
-      Connect to a light client node in Settings to see transaction history
-    </div>
-  `
+  } catch {}
 }

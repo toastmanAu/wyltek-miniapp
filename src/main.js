@@ -134,7 +134,13 @@ async function boot() {
 
   await initJoyID()
   await updateAuthUI()
-  await navigate('home')
+
+  // Deeplink: t.me/WyltekIndustriesBot/app?startapp=chain
+  const startParam = tg?.initDataUnsafe?.start_param || ''
+  const validTabs  = Object.keys(TABS)
+  const startTab   = validTabs.includes(startParam) ? startParam : 'home'
+
+  await navigate(startTab)
 }
 
 boot()
