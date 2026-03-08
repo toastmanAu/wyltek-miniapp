@@ -7,9 +7,17 @@ export const NODE_PRESETS = {
   ckb: {
     mainnet: [
       {
+        id: 'wyltek-light',
+        label: '⚡ Wyltek Light Client',
+        desc: 'Phill\'s CKB light client — tx history, UTXOs, verified headers',
+        url: 'https://wyltek-rpc.toastmanau.workers.dev/ckb-light',
+        proxy: true,
+        lightClient: true,
+      },
+      {
         id: 'wyltek',
-        label: '🟢 Wyltek Node',
-        desc: 'Phill\'s CKB mainnet node (via Cloudflare proxy)',
+        label: '🟢 Wyltek Full Node',
+        desc: 'Phill\'s CKB mainnet full node (via Cloudflare proxy)',
         url: 'https://wyltek-rpc.toastmanau.workers.dev/ckb',
         proxy: true,
       },
@@ -87,7 +95,7 @@ export function loadNodeConfig() {
     if (saved) return JSON.parse(saved)
   } catch {}
   return {
-    ckb: { net: 'mainnet', preset: 'wyltek', customUrl: '' },
+    ckb: { net: 'mainnet', preset: 'wyltek-light', customUrl: '' },
     btc: { net: 'mainnet', preset: 'wyltek', customUrl: '' },
   }
 }

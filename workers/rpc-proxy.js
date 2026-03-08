@@ -7,11 +7,12 @@
  *   POST /btc  → your Bitcoin node RPC
  *
  * Env vars to set in Cloudflare dashboard:
- *   CKB_RPC_URL  = http://192.168.68.87:8114   (or Tailscale IP)
- *   BTC_RPC_URL  = http://192.168.68.106:8332
- *   BTC_RPC_USER = toastman
- *   BTC_RPC_PASS = nervos123
- *   ALLOWED_ORIGIN = https://your-miniapp-domain.com
+ *   CKB_RPC_URL       = http://100.115.197.42:8114   (Pi Tailscale — full node)
+ *   CKB_LIGHT_RPC_URL = http://100.115.197.42:9001   (Pi Tailscale — light client)
+ *   BTC_RPC_URL       = http://192.168.68.106:8332
+ *   BTC_RPC_USER      = toastman
+ *   BTC_RPC_PASS      = nervos123
+ *   ALLOWED_ORIGIN    = https://wyltek-miniapp.pages.dev
  */
 
 const CORS_HEADERS = {
@@ -46,6 +47,8 @@ export default {
 
       if (chain === 'ckb') {
         result = await callCKB(env, body)
+      } else if (chain === 'ckb-light') {
+        result = await callCKBLight(env, body)
       } else if (chain === 'btc') {
         result = await callBTC(env, body)
       } else {
@@ -61,7 +64,18 @@ export default {
 }
 
 async function callCKB(env, body) {
-  const url = env.CKB_RPC_URL || 'http://192.168.68.87:8114'
+  const url = env.CKB_RPC_URL || 'http://100.115.197.42:8114'
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return res.json()
+}
+
+async function callCKBLight(env, body) {
+  // CKB light client RPC — set_scripts, get_cells, get_transactions, send_transaction
+  const url = env.CKB_LIGHT_RPC_URL || 'http://100.115.197.42:9001'
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
