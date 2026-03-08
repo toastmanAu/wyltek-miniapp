@@ -49,6 +49,8 @@ export default {
         result = await callCKB(env, body)
       } else if (chain === 'ckb-light') {
         result = await callCKBLight(env, body)
+      } else if (chain === 'fiber') {
+        result = await callFiber(env, body)
       } else if (chain === 'btc') {
         result = await callBTC(env, body)
       } else {
@@ -76,6 +78,18 @@ async function callCKB(env, body) {
 async function callCKBLight(env, body) {
   // CKB light client RPC — set_scripts, get_cells, get_transactions, send_transaction
   const url = env.CKB_LIGHT_RPC_URL || 'http://100.115.197.42:9001'
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return res.json()
+}
+
+async function callFiber(env, body) {
+  // SSH tunnel: autossh N100:8237 → ckbnode:127.0.0.1:8227
+  // No auth (biscuit key removed, localhost-only RPC)
+  const url = env.FIBER_RPC_URL || 'http://192.168.68.79:8237'
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

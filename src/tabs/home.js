@@ -112,6 +112,11 @@ export async function renderHome(el, state) {
         <div class="tool-label">Members</div>
         <div class="tool-sub">Founding DOBs</div>
       </button>
+      <button class="tool-btn" data-tab="fiber">
+        <div class="tool-icon">🌐</div>
+        <div class="tool-label">Fiber</div>
+        <div class="tool-sub">Channels · payments</div>
+      </button>
       <button class="tool-btn" data-href="https://explorer.nervos.org/address/${state.address}">
         <div class="tool-icon">🔍</div>
         <div class="tool-label">Explorer</div>
