@@ -10,7 +10,7 @@ const SECTIONS = [
   { id: 'ckb-index',   label: 'CKB Indexer',      icon: '📇', color: 'blue',   group: 'CKB' },
   { id: 'btc-main',    label: 'BTC Mainnet',      icon: '₿',  color: 'btc',    group: 'Bitcoin' },
   { id: 'btc-test',    label: 'BTC Testnet',       icon: '🧪', color: 'orange', group: 'Bitcoin' },
-  { id: 'fiber',       label: 'Fiber Network',    icon: '🌐', color: 'purple', group: 'Fiber' },
+  { id: 'ckb-network', label: 'CKB Network',     icon: '📊', color: 'blue',   group: 'Stats' },
 ]
 
 let activeSection = 'ckb-main'
@@ -81,7 +81,7 @@ async function loadSection(id) {
       case 'ckb-index':  await showIndexer(panel); break
       case 'btc-main':   await showBTC(panel, 'mainnet'); break
       case 'btc-test':   panel.innerHTML = comingSoon('BTC Testnet', 'Bitcoin testnet node not yet configured'); break
-      case 'fiber':      await showFiber(panel); break
+      case 'ckb-network': await showCKBNetwork(panel); break
     }
   } catch (err) {
     panel.innerHTML = errCard(err.message)
@@ -197,26 +197,35 @@ async function showBTC(panel, net) {
   }
 }
 
-async function showFiber(panel) {
-  // Fiber RPC via SSH tunnel (future: proxy via Worker)
-  panel.innerHTML = `
-    ${statusCard('Fiber Network', '🌐', 'sync', 'Coming Soon')}
-    <div class="card">
-      <div class="card-title">What's coming</div>
-      <div style="font-size:0.82rem;color:var(--text2);line-height:1.7">
-        • Channel list + balances<br>
-        • Open / close channels<br>
-        • Send payments via Fiber<br>
-        • Counterparty peer info<br>
-        • Node: Wyltek ckbnode + N100
+
+
+async function showCKBNetwork(panel) {
+  const url = 'https://mainnet.ckbapp.dev/rpc'
+  try {
+    const [tip, state, localInfo] = await Promise.all([
+      jsonRpc(url, 'get_tip_header', []),
+      jsonRpc(url, 'get_blockchain_info', []),
+      jsonRpc(url, 'local_node_info', []).catch(() => null),
+    ])
+
+    const blockNum   = parseInt(tip?.number, 16).toLocaleString()
+    const epoch      = tip?.epoch ? parseInt(tip.epoch, 16) : '—'
+    const epochNum   = epoch !== '—' ? epoch & 0xFFFFFF : '—'
+    const difficulty = state?.difficulty ? (BigInt(state.difficulty) / BigInt('0x10000000000000000')).toString() : '—'
+    const isInitial  = state?.is_initial_block_download
+
+    panel.innerHTML = `
+      \${statusCard('CKB Network Stats', '📊', isInitial ? 'sync' : 'ok', isInitial ? 'Syncing' : 'Live')}
+      <div class="card">
+        <div class="stat-row"><span class="stat-label">Block Height</span><span class="stat-value accent">\${blockNum}</span></div>
+        <div class="stat-row"><span class="stat-label">Epoch</span><span class="stat-value">\${epochNum}</span></div>
+        <div class="stat-row"><span class="stat-label">Chain</span><span class="stat-value">\${state?.chain ?? '—'}</span></div>
+        <div class="stat-row"><span class="stat-label">Warnings</span><span class="stat-value \${state?.warnings ? 'orange' : 'green'}">\${state?.warnings || 'None ✓'}</span></div>
       </div>
-    </div>
-    <div class="card">
-      <div class="stat-row"><span class="stat-label">ckbnode Fiber</span><span class="stat-value green">Running ✓</span></div>
-      <div class="stat-row"><span class="stat-label">N100 Fiber</span><span class="stat-value orange">Needs funding</span></div>
-      <div class="stat-row"><span class="stat-label">RPC proxy</span><span class="stat-value" style="color:var(--text3)">Not yet deployed</span></div>
-    </div>
-  `
+    `
+  } catch (err) {
+    panel.innerHTML = errCard('Network: ' + err.message)
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
