@@ -1,17 +1,17 @@
 /**
  * rpc.js — Node RPC helpers
- * Routes through a Cloudflare Worker proxy to keep node credentials private
- * and handle CORS.
- *
- * Worker URL: set in .env or hardcoded below
- * Worker source: workers/rpc-proxy.js in this repo
+ * URL resolved from user's node config (Settings tab).
+ * Falls back to Wyltek Cloudflare proxy if no config saved.
  */
 
-// Cloudflare Worker proxy — deploy workers/rpc-proxy.js to this URL
-const WORKER_BASE = 'https://wyltek-rpc.toastmanau.workers.dev'
+import { loadNodeConfig, resolveRpcUrl } from './tabs/settings.js'
 
 async function rpcCall(chain, method, params = []) {
-  const res = await fetch(`${WORKER_BASE}/${chain}`, {
+  const cfg = loadNodeConfig()
+  const url = resolveRpcUrl(chain, cfg)
+  if (!url) throw new Error(`No RPC URL configured for ${chain}`)
+
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ method, params, id: 1, jsonrpc: '2.0' }),

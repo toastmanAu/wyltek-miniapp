@@ -10,6 +10,7 @@ import { renderChain }    from './tabs/chain.js'
 import { renderResearch } from './tabs/research.js'
 import { renderLounge }   from './tabs/lounge.js'
 import { renderMembers }  from './tabs/members.js'
+import { renderSettings } from './tabs/settings.js'
 
 // ─── Telegram WebApp init ────────────────────────────────────────
 const tg = window.Telegram?.WebApp
@@ -35,6 +36,7 @@ const TABS = {
   research: renderResearch,
   lounge:   renderLounge,
   members:  renderMembers,
+  settings: renderSettings,
 }
 
 // ─── Navigation ──────────────────────────────────────────────────
