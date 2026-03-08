@@ -1,0 +1,17 @@
+{
+  "name": "wyltek-miniapp",
+  "version": "0.1.0",
+  "description": "Wyltek Industries Telegram Mini App",
+  "scripts": {
+    "dev": "vite --port 3000",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@joyid/miniapp": "latest",
+    "@supabase/supabase-js": "^2.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
