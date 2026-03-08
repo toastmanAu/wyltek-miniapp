@@ -1,59 +1,52 @@
 /**
- * Research tab — browse findings, like, comment
+ * Research tab (v2)
  */
 import { sb } from '../supabase.js'
 
 export async function renderResearch(el, state) {
   el.innerHTML = `
-    <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem">
-      <input id="research-search" placeholder="Search findings…" style="
-        flex:1;background:var(--surface);border:1px solid var(--border);
-        border-radius:8px;color:var(--text);padding:0.5rem 0.75rem;
-        font-size:0.875rem;outline:none;">
-      <select id="research-filter" style="
-        background:var(--surface);border:1px solid var(--border);
-        border-radius:8px;color:var(--muted);padding:0.5rem;font-size:0.8rem;outline:none;">
+    <div class="section-header">Research</div>
+    <div class="search-bar">
+      <input id="research-search" class="search-input" placeholder="🔍  Search findings…">
+      <select id="research-filter" class="filter-dropdown">
         <option value="">All</option>
-        <option value="DONE">Done</option>
-        <option value="IN_PROGRESS">In Progress</option>
-        <option value="PENDING">Pending</option>
+        <option value="DONE">✅ Done</option>
+        <option value="IN_PROGRESS">🔄 Active</option>
+        <option value="PENDING">⏳ Pending</option>
       </select>
     </div>
     <div id="research-list"><div class="spinner"></div></div>
   `
 
-  await loadResearch(el, state)
+  await loadResearch()
 
-  let searchTimer
-  document.getElementById('research-search').addEventListener('input', (e) => {
-    clearTimeout(searchTimer)
-    searchTimer = setTimeout(() => loadResearch(el, state, e.target.value, document.getElementById('research-filter').value), 300)
+  let timer
+  document.getElementById('research-search').addEventListener('input', e => {
+    clearTimeout(timer)
+    timer = setTimeout(() => loadResearch(
+      e.target.value,
+      document.getElementById('research-filter').value
+    ), 280)
   })
-
-  document.getElementById('research-filter').addEventListener('change', (e) => {
-    loadResearch(el, state, document.getElementById('research-search').value, e.target.value)
+  document.getElementById('research-filter').addEventListener('change', e => {
+    loadResearch(document.getElementById('research-search').value, e.target.value)
   })
 }
 
-async function loadResearch(el, state, search = '', filter = '') {
+async function loadResearch(search = '', filter = '') {
   const listEl = document.getElementById('research-list')
   if (!listEl) return
 
   try {
-    // Load from research-tasks.js data (same source as website)
-    const res = await fetch('https://wyltekindustries.com/js/research-tasks.js')
+    const res  = await fetch('https://wyltekindustries.com/js/research-tasks.js')
     const text = await res.text()
 
-    // Parse the RESEARCH_TASKS array from the JS file
     let tasks = []
-    try {
-      const match = text.match(/const RESEARCH_TASKS\s*=\s*(\[[\s\S]*?\]);/)
-      if (match) tasks = JSON.parse(match[1])
-    } catch {
-      // Fallback: fetch from Supabase if available
+    const match = text.match(/const RESEARCH_TASKS\s*=\s*(\[[\s\S]*?\]);/)
+    if (match) {
+      try { tasks = JSON.parse(match[1]) } catch {}
     }
 
-    // Apply filters
     let filtered = tasks
     if (search) {
       const q = search.toLowerCase()
@@ -65,30 +58,34 @@ async function loadResearch(el, state, search = '', filter = '') {
     }
     if (filter) filtered = filtered.filter(t => t.status === filter)
 
-    if (filtered.length === 0) {
-      listEl.innerHTML = `<div class="empty-state"><div class="icon">🔬</div><p>No results</p></div>`
+    if (!filtered.length) {
+      listEl.innerHTML = `<div class="empty-state"><div class="icon">🔬</div><p>No results found</p></div>`
       return
     }
 
-    listEl.innerHTML = filtered.slice(0, 30).map(task => `
-      <div class="research-item" data-id="${task.id}">
-        <div class="research-item-title">${task.title || task.id}</div>
+    const statusDot = s => {
+      if (s === 'DONE') return '<span class="status-dot done"></span>'
+      if (s === 'IN_PROGRESS') return '<span class="status-dot progress"></span>'
+      return '<span class="status-dot pending"></span>'
+    }
+
+    listEl.innerHTML = filtered.slice(0, 40).map(t => `
+      <div class="research-item" data-id="${t.id}">
+        <div class="research-item-title">${t.title || t.id}</div>
         <div class="research-item-meta">
-          <span>${task.status || ''}</span>
-          <span>${task.priority || ''}</span>
-          <span>${task.date || ''}</span>
+          <span>${statusDot(t.status)}${t.status || ''}</span>
+          ${t.priority ? `<span>${t.priority}</span>` : ''}
+          ${t.date ? `<span>${t.date}</span>` : ''}
         </div>
-        ${task.tags ? `<div class="research-item-tags">
-          ${task.tags.map(t => `<span class="pill">${t}</span>`).join('')}
+        ${t.tags?.length ? `<div class="research-item-tags">
+          ${t.tags.slice(0,4).map(tag => `<span class="pill">${tag}</span>`).join('')}
         </div>` : ''}
       </div>
     `).join('')
 
-    // Click → open on website
     listEl.querySelectorAll('.research-item').forEach(item => {
       item.addEventListener('click', () => {
-        const id = item.dataset.id
-        window.Telegram?.WebApp?.openLink(`https://wyltekindustries.com/research.html#${id}`)
+        window.Telegram?.WebApp?.openLink(`https://wyltekindustries.com/research.html#${item.dataset.id}`)
       })
     })
 

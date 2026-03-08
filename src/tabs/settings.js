@@ -119,7 +119,7 @@ export async function renderSettings(el, state) {
   const cfg = loadNodeConfig()
 
   el.innerHTML = `
-    <h3 style="color:var(--text);margin:0 0 1rem;font-size:1rem">⚙️ Settings</h3>
+    <div class="section-header">Settings</div>
 
     <!-- CKB Node -->
     <div class="card" style="margin-bottom:0.75rem">
@@ -164,7 +164,7 @@ export async function renderSettings(el, state) {
     <button class="btn btn-primary btn-full" id="test-conn" style="margin-bottom:0.75rem">
       Test Connection
     </button>
-    <div id="test-result" style="font-size:0.8rem;color:var(--muted);text-align:center;min-height:1.5rem"></div>
+    <div id="test-result" class="test-result"></div>
 
     <!-- About -->
     <div class="card" style="margin-top:0.75rem">
@@ -236,7 +236,7 @@ function renderCustomInput(chain, cfg) {
 
 function attachHandlers(el, cfg) {
   // Network toggle buttons
-  el.querySelectorAll('.net-btn').forEach(btn => {
+  el.querySelectorAll('.net-toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const chain = btn.dataset.chain
       const net   = btn.dataset.net
@@ -247,8 +247,8 @@ function attachHandlers(el, cfg) {
       document.getElementById(`${chain}-presets`).innerHTML = renderPresets(chain, cfg)
       document.getElementById(`${chain}-custom`).style.display = 'none'
       // Update button styles
-      el.querySelectorAll(`.net-btn[data-chain="${chain}"]`).forEach(b => {
-        b.style.cssText = `flex:1;${netBtnStyle(b.dataset.net === net)}`
+      el.querySelectorAll(`.net-toggle-btn[data-chain="${chain}"]`).forEach(b => {
+        b.classList.toggle('active', b.dataset.net === net)
       })
       attachPresetHandlers(chain, cfg)
     })
