@@ -1,17 +1,13 @@
 /**
  * auth.js — JoyID miniapp SDK integration
- * 
- * Flow: buildCkbConnectUrl → tg.openLink → JoyID auth → redirects back to app URL
- * On return: _processCallback() reads result from URL params set by JoyID
- * 
- * NOTE: Telegram Mini App browsers don't auto-close after redirect.
- * User must manually return to Telegram after JoyID auth completes.
- * The redirect URL lands back on the mini app with ?_data_= in the query string.
+ *
+ * Flow: buildCkbConnectUrl → tg.openLink → JoyID auth → redirects back with ?_data_=&joyid-redirect=true
+ * On return: boot() calls initJoyID() → _processCallback() reads result via SDK's authCallback()
  */
 
 import { buildCkbConnectUrl, initConfig } from '@joyid/miniapp'
+import { isRedirectFromJoyID, authCallback } from '@joyid/common'
 
-// Base URL of the mini app — JoyID will redirect here after auth
 const APP_URL = 'https://wyltek-miniapp.pages.dev/'
 
 const JOYID_CONFIG = {
@@ -25,8 +21,7 @@ const JOYID_CONFIG = {
 export function initJoyID() {
   try {
     initConfig(JOYID_CONFIG)
-    console.log('[Auth] JoyID miniapp config set')
-    // Check if we got a callback result in the URL (from redirect after auth)
+    console.log('[Auth] JoyID config set')
     _processCallback()
   } catch (err) {
     console.warn('[Auth] JoyID init failed:', err.message)
@@ -39,14 +34,11 @@ export function authWithJoyID() {
     const url = buildCkbConnectUrl({
       ...JOYID_CONFIG,
       redirectURL: APP_URL,
+      // type must be redirect for the miniapp redirect flow
+      type: 'redirect',
     })
-    console.log('[Auth] Opening JoyID — redirect back to:', APP_URL)
-    console.log('[Auth] JoyID URL:', url.slice(0, 120))
-
+    console.log('[Auth] Opening JoyID URL:', url.slice(0, 120))
     if (tg?.openLink) {
-      // Open JoyID in Telegram's browser
-      // User will auth, JoyID redirects to APP_URL with ?_data_= result
-      // User must then tap "Back to Telegram" or switch back manually
       tg.openLink(url, { try_instant_view: false })
     } else {
       window.open(url, '_blank')
@@ -65,35 +57,25 @@ export function disconnect() {
   localStorage.removeItem('wyltek_address')
 }
 
-// Called on app load — checks if JoyID redirected back with auth result
+// Called at boot — if we're returning from JoyID redirect, parse the result
 function _processCallback() {
   try {
-    const params = new URLSearchParams(location.search)
-    const data = params.get('_data_')
-    if (!data) return
+    if (!isRedirectFromJoyID()) return
 
-    console.log('[Auth] JoyID callback data found, decoding...')
-    
-    // JoyID encodes result as base64 JSON in _data_ param
-    let decoded
-    try {
-      decoded = JSON.parse(atob(data))
-    } catch {
-      // Try URL-safe base64
-      decoded = JSON.parse(atob(data.replace(/-/g, '+').replace(/_/g, '/')))
-    }
+    console.log('[Auth] JoyID redirect detected, parsing callback...')
+    const result = authCallback()
+    console.log('[Auth] authCallback result:', result)
 
-    console.log('[Auth] JoyID decoded result:', decoded)
-
-    // CKB address is in decoded.address or decoded.ckbAddress
-    const address = decoded?.address || decoded?.ckbAddress
+    const address = result?.address
     if (address) {
       localStorage.setItem('wyltek_address', address)
-      console.log('[Auth] Saved address:', address)
-      // Clean the URL so refresh doesn't reprocess
+      console.log('[Auth] Saved CKB address:', address)
+      // Clean redirect params from URL
       history.replaceState(null, '', location.pathname)
-      // Dispatch event so wallet UI can update
+      // Signal to main.js that auth completed
       window.dispatchEvent(new CustomEvent('joyid-auth', { detail: { address } }))
+    } else {
+      console.warn('[Auth] authCallback returned no address:', result)
     }
   } catch (err) {
     console.warn('[Auth] JoyID callback parse failed:', err.message)

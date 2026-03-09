@@ -244,11 +244,15 @@ authBadge.addEventListener('click', async () => {
 })
 
 // Listen for JoyID auth callback (fires when app reloads after redirect)
+// May fire during boot() before DOM is fully wired — defer to next tick
 window.addEventListener('joyid-auth', (e) => {
   state.address = e.detail.address
   localStorage.setItem('wyltek_address', e.detail.address)
-  updateAuthUI()
-  tg?.HapticFeedback?.notificationOccurred('success')
+  // Use setTimeout to ensure this runs after boot() finishes wiring the DOM
+  setTimeout(() => {
+    updateAuthUI()
+    tg?.HapticFeedback?.notificationOccurred('success')
+  }, 0)
 })
 
 // ── Boot ──────────────────────────────────────────────────────────
