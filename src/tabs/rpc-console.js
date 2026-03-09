@@ -656,6 +656,48 @@ async function executeCall() {
   updateBtn()
 }
 
+// ── Hex decoder ───────────────────────────────────────────────────
+// Returns a human-readable annotation for a hex string, or null if not a number
+function hexAnnotation(hex) {
+  // Must be 0x + 1–16 hex digits (64-bit max) to be a "number" hex
+  // Skip 32+ char hashes (0x + 64 chars) — those are hashes not numbers
+  if (!/^0x[0-9a-fA-F]{1,16}$/.test(hex)) return null
+  const n = BigInt(hex)
+  // If > 1e18 it's probably Shannon (CKB shannons = CKB * 1e8)
+  const CKB_SHANNON = 100_000_000n
+  const annotations = []
+
+  // Always show decimal
+  const dec = n.toString()
+  annotations.push(dec)
+
+  // If large enough to be CKB capacity (> 6100 CKB = 610_000_000_000 shannon)
+  if (n >= 610_000_000_000n) {
+    const ckb = (Number(n) / 1e8).toLocaleString('en-AU', { maximumFractionDigits: 4 })
+    annotations.push(`${ckb} CKB`)
+  }
+  // Block numbers — reasonable range
+  else if (n > 1000n && n < 100_000_000n) {
+    annotations.push(`block ~${Number(n).toLocaleString()}`)
+  }
+
+  return annotations.join(' · ')
+}
+
+// Annotate JSON string: replace hex number values with hex + decoded inline
+function annotateHex(jsonStr) {
+  // Match JSON string values like: "0x1a2b3c" (in quotes)
+  // and bare hex values (unlikely in JSON but handle anyway)
+  return esc(jsonStr).replace(
+    /(&quot;)(0x[0-9a-fA-F]{1,16})(&quot;)/g,
+    (match, q1, hex, q2) => {
+      const ann = hexAnnotation(hex)
+      if (!ann) return match
+      return `${q1}${hex}${q2}<span class="rpc-hex-ann">${esc(ann)}</span>`
+    }
+  )
+}
+
 // ── Result display ────────────────────────────────────────────────
 function renderResult(el, entry) {
   if (!el) return
@@ -663,18 +705,32 @@ function renderResult(el, entry) {
   const lines = json.split('\n').length
   const trim  = lines > 25
 
+  // Toggle state for hex decode
+  let hexDecoded = true
+
   el.innerHTML = `
     <div class="rpc-result ${entry.ok?'ok':'err'}">
       <div class="rpc-result-hdr">
         <span class="${entry.ok?'rpc-ok':'rpc-err'}">${entry.ok?'✓ OK':'✗ Error'} · ${entry.ms}ms</span>
         <div style="display:flex;gap:0.35rem">
+          <button class="rpc-tiny-btn rpc-hex-toggle" id="rpc-hex-toggle" title="Toggle hex/decimal annotations">Dec ✓</button>
           ${trim?`<button class="rpc-tiny-btn" id="rpc-expand">Expand</button>`:''}
           <button class="rpc-tiny-btn" id="rpc-copy">Copy</button>
         </div>
       </div>
-      <pre class="rpc-pre${trim?' trimmed':''}">${esc(json)}</pre>
+      <pre class="rpc-pre${trim?' trimmed':''}" id="rpc-pre-out">${annotateHex(json)}</pre>
     </div>
   `
+
+  // Hex toggle
+  document.getElementById('rpc-hex-toggle')?.addEventListener('click', e => {
+    hexDecoded = !hexDecoded
+    const pre = document.getElementById('rpc-pre-out')
+    if (pre) pre.innerHTML = hexDecoded ? annotateHex(json) : esc(json)
+    e.target.textContent = hexDecoded ? 'Dec ✓' : 'Dec'
+    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+  })
+
   document.getElementById('rpc-copy')?.addEventListener('click', () => {
     navigator.clipboard?.writeText(json)
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')

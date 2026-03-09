@@ -986,3 +986,20 @@ body:has(.sub-nav.visible) #tab-content {
 .rpc-clip-btn.clr:active, .rpc-clip-btn.clr:hover { background: var(--red, #e44); color: #fff; border-color: transparent; }
 .rpc-clip-btn.save-here { background: var(--surface2); color: var(--text3); width: 100%; text-align: center; }
 .rpc-clip-clear-all { margin-top: 0.3rem; align-self: flex-end; }
+
+/* ── Hex annotations ──────────────────────────────────────────── */
+.rpc-hex-ann {
+  display: inline-block;
+  margin-left: 0.4em;
+  padding: 0.05em 0.35em;
+  border-radius: 4px;
+  background: rgba(0, 212, 160, 0.12);
+  color: var(--accent);
+  font-size: 0.72em;
+  font-family: sans-serif;
+  font-weight: 600;
+  vertical-align: middle;
+  pointer-events: none;
+  user-select: none;
+}
+.rpc-hex-toggle.active { background: var(--accent); color: #000; border-color: var(--accent); }
