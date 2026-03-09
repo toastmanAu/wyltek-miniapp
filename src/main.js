@@ -84,22 +84,20 @@ if (tg) {
     import('./vfx.js').then(m => m.stopBlockPulse())
   })
   tg.onEvent('activated', () => {
-    // If we have a pending auth token, do an immediate poll on resume
-    // (interval may have been suspended while TG WebView was backgrounded)
+    // When user switches back to TG after JoyID — do immediate poll
     const pendingToken = window._joyidPendingToken
     if (pendingToken && !state.address) {
       fetch(`https://wyltek-rpc.toastman-one.workers.dev/joyid-poll?token=${pendingToken}`)
         .then(r => r.json())
         .then(data => {
           if (data.address) {
+            window._joyidPendingToken = null
             state.address = data.address
             localStorage.setItem('wyltek_address', data.address)
             updateAuthUI()
             tg?.HapticFeedback?.notificationOccurred('success')
-            window._joyidPendingToken = null
           }
-        })
-        .catch(() => {})
+        }).catch(() => {})
     }
   })
 }
@@ -266,27 +264,18 @@ authBadge.addEventListener('click', async () => {
 
 // ── Boot ──────────────────────────────────────────────────────────
 async function boot() {
-  // Check for JoyID auth result in URL hash (set by Worker callback redirect)
-  // Worker redirects to wyltek-miniapp.pages.dev/#jauth_<base64url-address>
+  // Check for JoyID auth result in URL hash (legacy fallback)
   const hash = location.hash || ''
-  const jauthParam = tg?.initDataUnsafe?.start_param || ''
-  const jauthRaw = hash.startsWith('#jauth_') ? hash.slice(7)
-                 : jauthParam.startsWith('jauth_') ? jauthParam.slice(6)
-                 : null
-  if (jauthRaw) {
+  if (hash.startsWith('#jauth_')) {
     try {
-      const b64 = jauthRaw.replace(/-/g, '+').replace(/_/g, '/')
+      const b64 = hash.slice(7).replace(/-/g, '+').replace(/_/g, '/')
       const address = atob(b64)
       if (address.startsWith('ckb1') || address.startsWith('ckt1')) {
         localStorage.setItem('wyltek_address', address)
-        console.log('[boot] JoyID auth from hash/startapp:', address)
         cancelAuth()
-        // Clean hash from URL
         history.replaceState(null, '', location.pathname)
       }
-    } catch (e) {
-      console.warn('[boot] Failed to decode jauth param:', e.message)
-    }
+    } catch (e) {}
   }
 
   const saved = localStorage.getItem('wyltek_address')

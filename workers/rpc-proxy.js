@@ -23,10 +23,8 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 }
 
-// In-memory token store — survives within an isolate lifetime (~5min idle)
-// Good enough: tokens expire quickly and we only need one concurrent auth per user
-const AUTH_TOKENS = new Map() // token → { address, ts }
-const TOKEN_TTL_MS = 5 * 60 * 1000 // 5 minutes
+// In-memory token store removed — using Cloudflare KV (env.JOYID_TOKENS) instead
+// KV is shared across all Worker isolates; TTL enforced at write time
 
 // Tunnel ingress hostnames — must match wyltek-rpc.yml ingress rules
 const TUNNEL_HOSTS = {
@@ -119,19 +117,22 @@ export default {
         AUTH_TOKENS.set(token, { address, ts: now })
         console.log('[joyid-callback] ✅ address:', address)
 
-        // Redirect directly to mini app URL with address in hash fragment
-        // Hash fragment is never sent to server — stays client-side only
-        // Mini app reads location.hash on boot
-        const encoded = btoa(address).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-        const miniAppUrl = `https://wyltek-miniapp.pages.dev/#jauth_${encoded}`
+        // Store in Cloudflare KV — shared across all isolates, 5min TTL
+        if (env.JOYID_TOKENS) {
+          await env.JOYID_TOKENS.put(token, address, { expirationTtl: 300 })
+          console.log('[joyid-callback] stored in KV for token', token.slice(0, 8))
+        }
+
+        // Show success page — user taps "Back to Telegram" manually
+        // (Can't auto-redirect into TG WebView from external browser)
         return new Response(`
           <!doctype html><html><head>
-          <meta http-equiv="refresh" content="1; url=${miniAppUrl}">
-          </head><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0f1117;color:#fff">
-          <h2 style="color:#4ade80">✅ Connected!</h2>
-          <p>Returning to Wyltek…</p>
-          <p><a href="${miniAppUrl}" style="color:#4ade80">Tap here if not redirected</a></p>
-          <script>setTimeout(() => { window.location.href = '${miniAppUrl}' }, 800)</script>
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          </head><body style="font-family:-apple-system,sans-serif;text-align:center;padding:60px 20px;background:#0f1117;color:#fff;min-height:100vh;box-sizing:border-box">
+          <div style="font-size:64px;margin-bottom:16px">✅</div>
+          <h2 style="color:#4ade80;margin:0 0 12px">Wallet Connected!</h2>
+          <p style="color:#94a3b8;margin:0 0 32px;font-size:15px">Switch back to Telegram —<br>your wallet is now linked.</p>
+          <p style="color:#64748b;font-size:13px">You can close this tab.</p>
           </body></html>
         `, { headers: { 'Content-Type': 'text/html' } })
       } catch (err) {
@@ -154,18 +155,14 @@ export default {
       const token = url.searchParams.get('token')
       if (!token) return json({ error: 'Missing token' }, 400)
 
-      const entry = AUTH_TOKENS.get(token)
-      if (!entry) return json({ pending: true })
+      if (!env.JOYID_TOKENS) return json({ error: 'KV not configured' }, 500)
 
-      const now = Date.now()
-      if (now - entry.ts > TOKEN_TTL_MS) {
-        AUTH_TOKENS.delete(token)
-        return json({ error: 'Token expired' }, 410)
-      }
+      const address = await env.JOYID_TOKENS.get(token)
+      if (!address) return json({ pending: true })
 
-      // Found — return address and delete token
-      AUTH_TOKENS.delete(token)
-      return json({ address: entry.address })
+      // Found — delete token and return address
+      await env.JOYID_TOKENS.delete(token)
+      return json({ address })
     }
 
     if (request.method !== 'POST') {

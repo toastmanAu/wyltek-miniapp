@@ -5,3 +5,7 @@ account_id = "b5b61da50e95df1ff2f70f925bf377fc"
 
 [vars]
 ALLOWED_ORIGIN = "https://wyltek-miniapp.pages.dev"
+
+[[kv_namespaces]]
+binding = "JOYID_TOKENS"
+id = "d8054f7259a0498a82687ab8ab69ca20"
