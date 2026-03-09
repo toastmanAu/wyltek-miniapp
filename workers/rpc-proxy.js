@@ -3,10 +3,12 @@
  * Deploy: wyltek-rpc.toastman-one.workers.dev
  *
  * Routes:
- *   POST /ckb        → CKB full node via Cloudflare Tunnel
- *   POST /ckb-light  → CKB light client via Cloudflare Tunnel
- *   POST /fiber      → Fiber node via Cloudflare Tunnel
- *   POST /btc        → Bitcoin node via Cloudflare Tunnel
+ *   POST /ckb              → CKB full node via Cloudflare Tunnel
+ *   POST /ckb-light        → CKB light client via Cloudflare Tunnel
+ *   POST /fiber            → Fiber node via Cloudflare Tunnel
+ *   POST /btc              → Bitcoin node via Cloudflare Tunnel
+ *   GET  /joyid-callback   → JoyID auth relay: store result keyed by token
+ *   GET  /joyid-poll       → Mini app polls for auth result by token
  *
  * Env vars (set as Worker secrets):
  *   TUNNEL_URL        = https://51f600d8-f583-4ed5-b0b3-27015ca31349.cfargotunnel.com
@@ -17,9 +19,14 @@
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 }
+
+// In-memory token store — survives within an isolate lifetime (~5min idle)
+// Good enough: tokens expire quickly and we only need one concurrent auth per user
+const AUTH_TOKENS = new Map() // token → { address, ts }
+const TOKEN_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
 // Tunnel ingress hostnames — must match wyltek-rpc.yml ingress rules
 const TUNNEL_HOSTS = {
@@ -33,27 +40,97 @@ const TUNNEL_BASE = 'https://51f600d8-f583-4ed5-b0b3-27015ca31349.cfargotunnel.c
 
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url)
+    const path = url.pathname.replace(/^\//, '').split('/')[0]
+
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS })
     }
+
+    // ── JoyID auth relay (GET) ─────────────────────────────────────
+    if (path === 'joyid-callback') {
+      // JoyID redirects here with ?token=<tok>&_data_=<encoded>&joyid-redirect=true
+      const token = url.searchParams.get('token')
+      const rawData = url.searchParams.get('_data_')
+
+      if (!token || !rawData) {
+        return new Response('Missing token or _data_', { status: 400 })
+      }
+
+      try {
+        // _data_ is encoded by JoyID's encodeSearch (qs-like encoding wrapping JSON)
+        // The outer structure is {data: {address, ...}, error: null}
+        // Try standard decodeURIComponent + JSON parse
+        let parsed
+        try {
+          parsed = JSON.parse(decodeURIComponent(rawData))
+        } catch {
+          // Try as plain JSON
+          parsed = JSON.parse(rawData)
+        }
+        const address = parsed?.data?.address || parsed?.address
+        if (!address) throw new Error('No address in payload: ' + JSON.stringify(parsed).slice(0, 200))
+
+        // Clean expired tokens
+        const now = Date.now()
+        for (const [k, v] of AUTH_TOKENS) {
+          if (now - v.ts > TOKEN_TTL_MS) AUTH_TOKENS.delete(k)
+        }
+
+        AUTH_TOKENS.set(token, { address, ts: now })
+        console.log('[joyid-callback] stored address for token', token.slice(0, 8), '->', address)
+
+        // Redirect to a simple success page so the browser closes cleanly
+        return new Response(`
+          <!doctype html><html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0f1117;color:#fff">
+          <h2 style="color:#4ade80">✅ Connected!</h2>
+          <p>Switch back to Telegram — your wallet is now linked.</p>
+          <script>
+            setTimeout(() => { try { window.close() } catch(e) {} }, 2000)
+          </script>
+          </body></html>
+        `, { headers: { 'Content-Type': 'text/html' } })
+      } catch (err) {
+        console.error('[joyid-callback] parse error:', err.message, 'raw:', rawData?.slice(0, 200))
+        return new Response('Auth parse failed: ' + err.message, { status: 500 })
+      }
+    }
+
+    if (path === 'joyid-poll') {
+      // Mini app polls: GET /joyid-poll?token=<tok>
+      const token = url.searchParams.get('token')
+      if (!token) return json({ error: 'Missing token' }, 400)
+
+      const entry = AUTH_TOKENS.get(token)
+      if (!entry) return json({ pending: true })
+
+      const now = Date.now()
+      if (now - entry.ts > TOKEN_TTL_MS) {
+        AUTH_TOKENS.delete(token)
+        return json({ error: 'Token expired' }, 410)
+      }
+
+      // Found — return address and delete token
+      AUTH_TOKENS.delete(token)
+      return json({ address: entry.address })
+    }
+
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 })
     }
-
-    const url   = new URL(request.url)
-    const chain = url.pathname.replace(/^\//, '').split('/')[0]
 
     let body
     try { body = await request.json() }
     catch { return json({ error: 'Invalid JSON' }, 400) }
 
+    let result
     try {
-      if (chain === 'btc') {
+      if (path === 'btc') {
         result = await callBTC(env, body)
-      } else if (chain === 'feedback') {
+      } else if (path === 'feedback') {
         result = await submitFeedback(env, body)
       } else {
-        result = await callTunnel(chain, body, env)
+        result = await callTunnel(path, body, env)
       }
       return json(result)
     } catch (err) {

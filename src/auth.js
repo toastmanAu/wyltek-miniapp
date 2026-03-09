@@ -1,16 +1,22 @@
 /**
- * auth.js — JoyID auth via /auth redirect flow
+ * auth.js — JoyID auth via Cloudflare Worker relay
  *
- * Bypasses /auth-mini-app (which shows a green "Sign" button confirmation page).
- * Uses /auth with type=redirect directly from @joyid/common — auto-proceeds through auth,
- * then redirects back to APP_URL with ?_data_=<result>&joyid-redirect=true.
+ * Problem: JoyID's redirect flow sends result to redirectURL in the EXTERNAL browser.
+ * Telegram Mini App WebView never sees those URL params.
  *
- * On return: boot() calls initJoyID() → _processCallback() reads result via SDK's authCallback().
+ * Solution: relay via Worker
+ *   1. Generate sessionToken
+ *   2. Open JoyID with redirectURL = Worker /joyid-callback?token=<sessionToken>
+ *   3. JoyID redirects to Worker with ?_data_=<result>&joyid-redirect=true&token=<sessionToken>
+ *   4. Worker parses address, stores it keyed by token (5min TTL, in-memory)
+ *   5. Mini app polls Worker /joyid-poll?token=<sessionToken> every 2s
+ *   6. Worker returns {address} → mini app saves to localStorage, updates UI
  */
 
-import { initConfig, getConfig } from '@joyid/miniapp'
-import { buildJoyIDAuthURL, isRedirectFromJoyID, authCallback, encodeSearch } from '@joyid/common'
+import { initConfig } from '@joyid/miniapp'
+import { buildJoyIDAuthURL } from '@joyid/common'
 
+const WORKER_URL = 'https://wyltek-rpc.toastman-one.workers.dev'
 const APP_URL = 'https://wyltek-miniapp.pages.dev/'
 
 const JOYID_CONFIG = {
@@ -18,39 +24,54 @@ const JOYID_CONFIG = {
   joyidAppURL: 'https://app.joy.id',
   name: 'Wyltek Industries',
   logo: 'https://wyltekindustries.com/wyltek-mark.png',
-  redirectURL: APP_URL,
 }
 
 export function initJoyID() {
   try {
     initConfig(JOYID_CONFIG)
     console.log('[Auth] JoyID config set')
-    _processCallback()
   } catch (err) {
     console.warn('[Auth] JoyID init failed:', err.message)
   }
 }
 
-export function authWithJoyID() {
+let _pollInterval = null
+
+export function authWithJoyID(onSuccess, onError) {
   const tg = window.Telegram?.WebApp
   try {
-    // Build /auth redirect URL directly — skips /auth-mini-app green button page
+    // Generate a session token for this auth attempt
+    const sessionToken = crypto.randomUUID()
+    const callbackURL = `${WORKER_URL}/joyid-callback?token=${sessionToken}`
+
     const request = {
       ...JOYID_CONFIG,
-      redirectURL: APP_URL,
+      redirectURL: callbackURL,
       requestNetwork: 'nervos',
     }
     const url = buildJoyIDAuthURL(request, 'redirect')
-    console.log('[Auth] Opening JoyID /auth redirect:', url.slice(0, 120))
+    console.log('[Auth] Session token:', sessionToken)
+    console.log('[Auth] Callback URL:', callbackURL)
+    console.log('[Auth] Opening JoyID:', url.slice(0, 120))
 
     if (tg?.openLink) {
       tg.openLink(url, { try_instant_view: false })
     } else {
       window.open(url, '_blank')
     }
+
+    // Start polling Worker for auth result
+    _startPolling(sessionToken, onSuccess, onError)
   } catch (err) {
     console.error('[Auth] JoyID connect failed:', err)
-    throw err
+    if (onError) onError(err)
+  }
+}
+
+export function cancelAuth() {
+  if (_pollInterval) {
+    clearInterval(_pollInterval)
+    _pollInterval = null
   }
 }
 
@@ -60,48 +81,43 @@ export function getConnectedAddress() {
 
 export function disconnect() {
   localStorage.removeItem('wyltek_address')
+  cancelAuth()
 }
 
-// Called at boot — if returning from JoyID redirect, parse the result
-function _processCallback() {
-  const url = new URL(location.href)
-  const hasRedirectFlag = url.searchParams.has('joyid-redirect')
-  const hasData = url.searchParams.has('_data_')
-  console.log('[Auth] _processCallback — joyid-redirect:', hasRedirectFlag, '_data_:', hasData, 'href:', location.href.slice(0, 200))
+function _startPolling(token, onSuccess, onError) {
+  cancelAuth() // clear any existing poll
 
-  try {
-    if (!isRedirectFromJoyID()) {
-      console.log('[Auth] Not a JoyID redirect, skipping callback parse')
+  let attempts = 0
+  const MAX_ATTEMPTS = 90 // 3 minutes at 2s intervals
+
+  console.log('[Auth] Polling for token', token.slice(0, 8), '...')
+  _pollInterval = setInterval(async () => {
+    attempts++
+    if (attempts > MAX_ATTEMPTS) {
+      cancelAuth()
+      console.warn('[Auth] Poll timed out after 3 minutes')
+      if (onError) onError(new Error('Auth timed out'))
       return
     }
 
-    console.log('[Auth] JoyID redirect detected, parsing callback...')
-    const result = authCallback()
-    console.log('[Auth] authCallback result keys:', result ? Object.keys(result) : null)
-    console.log('[Auth] authCallback result:', JSON.stringify(result))
-
-    const address = result?.address
-    if (address) {
-      localStorage.setItem('wyltek_address', address)
-      console.log('[Auth] ✅ Saved CKB address:', address)
-      history.replaceState(null, '', location.pathname)
-      window.dispatchEvent(new CustomEvent('joyid-auth', { detail: { address } }))
-    } else {
-      console.warn('[Auth] ❌ authCallback returned no address. Full result:', result)
-    }
-  } catch (err) {
-    console.error('[Auth] ❌ JoyID callback parse failed:', err.message, err)
-    // Last resort: try to extract address from raw _data_ param
     try {
-      const raw = url.searchParams.get('_data_')
-      if (raw) {
-        console.log('[Auth] Trying raw _data_ decode, length:', raw.length)
-        const decoded = JSON.parse(decodeURIComponent(raw))
-        console.log('[Auth] raw decoded keys:', Object.keys(decoded))
-        console.log('[Auth] raw decoded:', JSON.stringify(decoded).slice(0, 300))
+      const res = await fetch(`${WORKER_URL}/joyid-poll?token=${token}`)
+      const data = await res.json()
+
+      if (data.address) {
+        cancelAuth()
+        localStorage.setItem('wyltek_address', data.address)
+        console.log('[Auth] ✅ Got address from relay:', data.address)
+        if (onSuccess) onSuccess(data.address)
+      } else if (data.error) {
+        cancelAuth()
+        console.error('[Auth] Poll error:', data.error)
+        if (onError) onError(new Error(data.error))
       }
-    } catch (e2) {
-      console.warn('[Auth] Raw decode also failed:', e2.message)
+      // data.pending = true → keep polling
+    } catch (err) {
+      console.warn('[Auth] Poll request failed:', err.message)
+      // Network error — keep trying
     }
-  }
+  }, 2000)
 }

@@ -6,7 +6,7 @@
 import './style.css'
 import { initTransitions } from './transition.js'
 import { initParticles, initRipple, initHeroShimmer, injectLiveDotCSS, stopBlockPulse } from './vfx.js'
-import { initJoyID, authWithJoyID } from './auth.js'
+import { initJoyID, authWithJoyID, cancelAuth } from './auth.js'
 
 // ── Lazy tab renderers ────────────────────────────────────────────
 const renderers = {
@@ -232,23 +232,20 @@ authBadge.addEventListener('click', async () => {
     })
     return
   }
-  authLabel.textContent = '...'
-  try {
-    authWithJoyID()
-    authLabel.textContent = 'Connect'  // app will reload on JoyID return; reset label cleanly
-  } catch { authLabel.textContent = 'Connect' }
-})
-
-// Listen for JoyID auth callback (fires when app reloads after redirect)
-// May fire during boot() before DOM is fully wired — defer to next tick
-window.addEventListener('joyid-auth', (e) => {
-  state.address = e.detail.address
-  localStorage.setItem('wyltek_address', e.detail.address)
-  // Use setTimeout to ensure this runs after boot() finishes wiring the DOM
-  setTimeout(() => {
-    updateAuthUI()
-    tg?.HapticFeedback?.notificationOccurred('success')
-  }, 0)
+  authLabel.textContent = 'Waiting…'
+  authWithJoyID(
+    // onSuccess — called when Worker relay delivers the address
+    (address) => {
+      state.address = address
+      updateAuthUI()
+      tg?.HapticFeedback?.notificationOccurred('success')
+    },
+    // onError
+    (err) => {
+      console.warn('[main] Auth error:', err.message)
+      authLabel.textContent = 'Connect'
+    }
+  )
 })
 
 // ── Boot ──────────────────────────────────────────────────────────
