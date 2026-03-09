@@ -178,6 +178,19 @@ export default {
       return json({ address })
     }
 
+    // ── Research finding fetch (GET) ──────────────────────────────
+    if (path === 'research-finding') {
+      const id = url.searchParams.get('id')
+      if (!id || !/^[a-z0-9-]+$/.test(id)) return json({ error: 'Invalid id' }, 400)
+      const mdUrl = `https://wyltekindustries.com/research/${id}.md`
+      const res = await fetch(mdUrl)
+      if (!res.ok) return json({ error: 'Not found' }, 404)
+      const md = await res.text()
+      return new Response(md, {
+        headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=300' }
+      })
+    }
+
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 })
     }
