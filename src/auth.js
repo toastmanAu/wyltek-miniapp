@@ -1,12 +1,15 @@
 /**
- * auth.js — JoyID miniapp SDK integration
+ * auth.js — JoyID auth via /auth redirect flow
  *
- * Flow: buildCkbConnectUrl → tg.openLink → JoyID auth → redirects back with ?_data_=&joyid-redirect=true
- * On return: boot() calls initJoyID() → _processCallback() reads result via SDK's authCallback()
+ * Bypasses /auth-mini-app (which shows a green "Sign" button confirmation page).
+ * Uses /auth with type=redirect directly from @joyid/common — auto-proceeds through auth,
+ * then redirects back to APP_URL with ?_data_=<result>&joyid-redirect=true.
+ *
+ * On return: boot() calls initJoyID() → _processCallback() reads result via SDK's authCallback().
  */
 
-import { buildCkbConnectUrl, initConfig } from '@joyid/miniapp'
-import { isRedirectFromJoyID, authCallback } from '@joyid/common'
+import { initConfig, getConfig } from '@joyid/miniapp'
+import { buildJoyIDAuthURL, isRedirectFromJoyID, authCallback, encodeSearch } from '@joyid/common'
 
 const APP_URL = 'https://wyltek-miniapp.pages.dev/'
 
@@ -31,13 +34,15 @@ export function initJoyID() {
 export function authWithJoyID() {
   const tg = window.Telegram?.WebApp
   try {
-    const url = buildCkbConnectUrl({
+    // Build /auth redirect URL directly — skips /auth-mini-app green button page
+    const request = {
       ...JOYID_CONFIG,
       redirectURL: APP_URL,
-      // type must be redirect for the miniapp redirect flow
-      type: 'redirect',
-    })
-    console.log('[Auth] Opening JoyID URL:', url.slice(0, 120))
+      requestNetwork: 'nervos',
+    }
+    const url = buildJoyIDAuthURL(request, 'redirect')
+    console.log('[Auth] Opening JoyID /auth redirect:', url.slice(0, 120))
+
     if (tg?.openLink) {
       tg.openLink(url, { try_instant_view: false })
     } else {
@@ -57,22 +62,20 @@ export function disconnect() {
   localStorage.removeItem('wyltek_address')
 }
 
-// Called at boot — if we're returning from JoyID redirect, parse the result
+// Called at boot — if returning from JoyID redirect, parse the result
 function _processCallback() {
   try {
     if (!isRedirectFromJoyID()) return
 
     console.log('[Auth] JoyID redirect detected, parsing callback...')
     const result = authCallback()
-    console.log('[Auth] authCallback result:', result)
+    console.log('[Auth] authCallback result:', JSON.stringify(result))
 
     const address = result?.address
     if (address) {
       localStorage.setItem('wyltek_address', address)
       console.log('[Auth] Saved CKB address:', address)
-      // Clean redirect params from URL
       history.replaceState(null, '', location.pathname)
-      // Signal to main.js that auth completed
       window.dispatchEvent(new CustomEvent('joyid-auth', { detail: { address } }))
     } else {
       console.warn('[Auth] authCallback returned no address:', result)
