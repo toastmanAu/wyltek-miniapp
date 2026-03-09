@@ -3,29 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Wyltek Industries</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script type="module" crossorigin src="/assets/index-BOrXsRon.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-7HcB1geY.css">
+  <script type="module" crossorigin src="/assets/index-CnO4aS20.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DFm1NECD.css">
 </head>
 <body>
   <div id="app">
 
     <header id="app-header">
       <div class="header-inner">
-        <img src="/wyltek-mark.png" alt="" class="logo-mark">
+        <!-- Home button (acts as both logo and nav) -->
+        <button id="home-btn" class="home-btn" aria-label="Home">
+          <img src="/wyltek-mark.png" alt="Wyltek" class="logo-mark">
+        </button>
         <span class="logo-text">Wyltek</span>
         <div id="auth-badge" class="auth-badge">
           <span id="auth-label">Connect</span>
         </div>
       </div>
-      <!-- Sub-nav row — populated by JS when a primary tab is active -->
       <div id="sub-nav" class="sub-nav"></div>
     </header>
 
     <main id="tab-content"></main>
 
     <nav id="bottom-nav">
+      <button class="nav-btn" data-tab="home">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Home</span>
+      </button>
       <button class="nav-btn active" data-tab="chain">
         <span class="nav-icon">⛓️</span>
         <span class="nav-label">Chain</span>
