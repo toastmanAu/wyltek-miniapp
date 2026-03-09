@@ -12,6 +12,7 @@ import { renderLounge }   from './tabs/lounge.js'
 import { renderMembers }  from './tabs/members.js'
 import { renderSettings } from './tabs/settings.js'
 import { renderFiber }    from './tabs/fiber.js'
+import { renderMore }     from './tabs/more.js'
 
 // ─── Telegram WebApp init ────────────────────────────────────────
 const tg = window.Telegram?.WebApp
@@ -36,9 +37,17 @@ const TABS = {
   chain:    renderChain,
   research: renderResearch,
   lounge:   renderLounge,
+  more:     renderMore,
+  // Sub-tabs (no nav highlight, accessible via More or deeplink)
   members:  renderMembers,
   fiber:    renderFiber,
   settings: renderSettings,
+}
+
+// Which nav button each tab belongs to (for active state)
+const TAB_NAV = {
+  home: 'home', chain: 'chain', research: 'research', lounge: 'lounge',
+  more: 'more', members: 'more', fiber: 'more', settings: 'more',
 }
 
 // ─── Navigation ──────────────────────────────────────────────────
@@ -47,9 +56,10 @@ const content = document.getElementById('tab-content')
 export async function navigate(tab) {
   state.tab = tab
 
-  // Update nav
+  // Update nav — highlight the parent nav button
+  const navOwner = TAB_NAV[tab] || tab
   document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tab)
+    btn.classList.toggle('active', btn.dataset.tab === navOwner)
   })
 
   // Render tab

@@ -95,37 +95,32 @@ export async function renderHome(el, state) {
       <button class="tool-btn" data-tab="chain">
         <div class="tool-icon">⛓️</div>
         <div class="tool-label">Chain</div>
-        <div class="tool-sub">CKB · BTC · Fiber</div>
+        <div class="tool-sub">CKB · BTC</div>
       </button>
       <button class="tool-btn" data-tab="research">
         <div class="tool-icon">🔬</div>
         <div class="tool-label">Research</div>
-        <div class="tool-sub">Ecosystem findings</div>
+        <div class="tool-sub">Findings</div>
       </button>
       <button class="tool-btn" data-tab="lounge">
-        <div class="tool-icon">🛋️</div>
+        <div class="tool-icon">💬</div>
         <div class="tool-label">Lounge</div>
-        <div class="tool-sub">Community chat</div>
+        <div class="tool-sub">Chat</div>
+      </button>
+      <button class="tool-btn" data-tab="fiber">
+        <div class="tool-icon">⚡</div>
+        <div class="tool-label">Fiber</div>
+        <div class="tool-sub">Channels</div>
       </button>
       <button class="tool-btn" data-tab="members">
         <div class="tool-icon">👾</div>
         <div class="tool-label">Members</div>
-        <div class="tool-sub">Founding DOBs</div>
-      </button>
-      <button class="tool-btn" data-tab="fiber">
-        <div class="tool-icon">🌐</div>
-        <div class="tool-label">Fiber</div>
-        <div class="tool-sub">Channels · payments</div>
+        <div class="tool-sub">DOBs</div>
       </button>
       <button class="tool-btn" data-href="https://explorer.nervos.org/address/${state.address}">
         <div class="tool-icon">🔍</div>
         <div class="tool-label">Explorer</div>
-        <div class="tool-sub">View on-chain</div>
-      </button>
-      <button class="tool-btn" data-tab="settings">
-        <div class="tool-icon">⚙️</div>
-        <div class="tool-label">Settings</div>
-        <div class="tool-sub">Node config</div>
+        <div class="tool-sub">On-chain</div>
       </button>
     </div>
 
