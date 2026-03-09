@@ -494,3 +494,85 @@ body {
   transform: scale(0.96);
   box-shadow: 0 0 0 1px rgba(0,212,255,0.2);
 }
+
+/* ── Dual nav — sub-nav row ───────────────────────────────────── */
+:root { --subnav-h: 44px; }
+
+#app-header {
+  height: var(--header-h);
+  transition: height 0.2s ease;
+}
+#app-header.has-subnav {
+  height: calc(var(--header-h) + var(--subnav-h));
+}
+
+.sub-nav {
+  display: none;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.75rem 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  height: var(--subnav-h);
+}
+.sub-nav::-webkit-scrollbar { display: none; }
+.sub-nav.visible {
+  display: flex;
+}
+
+/* Animate sub-nav in */
+.sub-nav.visible {
+  animation: subnav-in 0.2s ease both;
+}
+@keyframes subnav-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Make header taller when sub-nav is showing */
+#app-header:has(.sub-nav.visible) {
+  height: calc(var(--header-h) + var(--subnav-h));
+}
+
+#tab-content {
+  /* account for taller header when sub-nav visible */
+  padding-top: 0.875rem;
+}
+
+.sub-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.3rem 0.75rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.18s;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+.sub-tab-btn:active { transform: scale(0.94); }
+.sub-tab-btn.active {
+  background: rgba(from var(--sub-color) r g b / 0.12);
+  border-color: var(--sub-color);
+  box-shadow: 0 0 10px rgba(from var(--sub-color) r g b / 0.2);
+}
+.sub-tab-icon  { font-size: 0.9rem; line-height: 1; }
+.sub-tab-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text2);
+  letter-spacing: -0.01em;
+}
+.sub-tab-btn.active .sub-tab-label {
+  color: var(--sub-color);
+}
+
+/* Adjust content padding when sub-nav present */
+.sub-nav.visible ~ * #tab-content,
+body:has(.sub-nav.visible) #tab-content {
+  padding-top: 0.875rem;
+}

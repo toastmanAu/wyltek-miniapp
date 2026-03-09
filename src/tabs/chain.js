@@ -500,3 +500,8 @@ function showResult(el, entry) {
 function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
 }
+
+// Named exports for dual-nav routing
+export async function renderCKBTab(el, state) { return renderCKB(el, state) }
+export async function renderBTCTab(el, state) { return renderBTC(el) }
+export async function renderRPCTab(el, state) { return renderRPCConsole(el, state) }
