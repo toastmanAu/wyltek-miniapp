@@ -1,112 +1,96 @@
 /**
  * Wyltek RPC Proxy Worker
- * Deploy to Cloudflare Workers as: wyltek-rpc.toastmanau.workers.dev
+ * Deploy: wyltek-rpc.toastman-one.workers.dev
  *
  * Routes:
- *   POST /ckb  → your CKB node RPC
- *   POST /btc  → your Bitcoin node RPC
+ *   POST /ckb        → CKB full node via Cloudflare Tunnel
+ *   POST /ckb-light  → CKB light client via Cloudflare Tunnel
+ *   POST /fiber      → Fiber node via Cloudflare Tunnel
+ *   POST /btc        → Bitcoin node via Cloudflare Tunnel
  *
- * Env vars to set in Cloudflare dashboard:
- *   CKB_RPC_URL       = http://100.115.197.42:8114   (Pi Tailscale — full node)
- *   CKB_LIGHT_RPC_URL = http://100.115.197.42:9001   (Pi Tailscale — light client)
- *   BTC_RPC_URL       = http://192.168.68.106:8332
+ * Env vars (set as Worker secrets):
+ *   TUNNEL_URL        = https://51f600d8-f583-4ed5-b0b3-27015ca31349.cfargotunnel.com
  *   BTC_RPC_USER      = toastman
  *   BTC_RPC_PASS      = nervos123
  *   ALLOWED_ORIGIN    = https://wyltek-miniapp.pages.dev
  */
 
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',   // Tighten to your domain in production
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 }
 
+// Tunnel ingress hostnames — must match wyltek-rpc.yml ingress rules
+const TUNNEL_HOSTS = {
+  ckb:       'ckb-rpc.blackboxdata.xyz',
+  'ckb-light': 'ckb-light.blackboxdata.xyz',
+  fiber:     'fiber-rpc.blackboxdata.xyz',
+  btc:       'btc-rpc.blackboxdata.xyz',
+}
+
+const TUNNEL_BASE = 'https://51f600d8-f583-4ed5-b0b3-27015ca31349.cfargotunnel.com'
+
 export default {
   async fetch(request, env) {
-    // CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS })
     }
-
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 })
     }
 
-    const url = new URL(request.url)
-    const chain = url.pathname.replace('/', '').split('/')[0]
+    const url   = new URL(request.url)
+    const chain = url.pathname.replace(/^\//, '').split('/')[0]
 
     let body
-    try {
-      body = await request.json()
-    } catch {
-      return json({ error: 'Invalid JSON' }, 400)
-    }
+    try { body = await request.json() }
+    catch { return json({ error: 'Invalid JSON' }, 400) }
 
     try {
-      let result
-
-      if (chain === 'ckb') {
-        result = await callCKB(env, body)
-      } else if (chain === 'ckb-light') {
-        result = await callCKBLight(env, body)
-      } else if (chain === 'fiber') {
-        result = await callFiber(env, body)
-      } else if (chain === 'btc') {
-        result = await callBTC(env, body)
-      } else {
-        return json({ error: `Unknown chain: ${chain}` }, 400)
-      }
-
+      const result = chain === 'btc'
+        ? await callBTC(env, body)
+        : await callTunnel(chain, body, env)
       return json(result)
-
     } catch (err) {
       return json({ error: err.message }, 502)
     }
   }
 }
 
-async function callCKB(env, body) {
-  const url = env.CKB_RPC_URL || 'http://100.115.197.42:8114'
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return res.json()
-}
+async function callTunnel(chain, body, env) {
+  const host = TUNNEL_HOSTS[chain]
+  if (!host) throw new Error(`Unknown endpoint: ${chain}`)
 
-async function callCKBLight(env, body) {
-  // CKB light client RPC — set_scripts, get_cells, get_transactions, send_transaction
-  const url = env.CKB_LIGHT_RPC_URL || 'http://100.115.197.42:9001'
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return res.json()
-}
+  const tunnelUrl = env.TUNNEL_URL || TUNNEL_BASE
 
-async function callFiber(env, body) {
-  // SSH tunnel: autossh N100:8237 → ckbnode:127.0.0.1:8227
-  // No auth (biscuit key removed, localhost-only RPC)
-  const url = env.FIBER_RPC_URL || 'http://192.168.68.79:8237'
-  const res = await fetch(url, {
+  const res = await fetch(tunnelUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Host': host,   // cloudflared routes by Host header
+    },
     body: JSON.stringify(body),
   })
+  if (!res.ok && res.status !== 200) {
+    const txt = await res.text()
+    throw new Error(`Tunnel error ${res.status}: ${txt.slice(0,200)}`)
+  }
   return res.json()
 }
 
 async function callBTC(env, body) {
-  const url  = env.BTC_RPC_URL  || 'http://192.168.68.106:8332'
+  // BTC also goes via tunnel
+  const host = TUNNEL_HOSTS['btc']
+  const tunnelUrl = env.TUNNEL_URL || TUNNEL_BASE
   const user = env.BTC_RPC_USER || 'toastman'
   const pass = env.BTC_RPC_PASS || 'nervos123'
 
-  const res = await fetch(url, {
+  const res = await fetch(tunnelUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Host': host,
       'Authorization': 'Basic ' + btoa(`${user}:${pass}`),
     },
     body: JSON.stringify(body),

@@ -65,14 +65,22 @@ export const NODE_PRESETS = {
       {
         id: 'wyltek',
         label: '🟢 Wyltek Node',
-        desc: 'Phill\'s Bitcoin mainnet node (via Cloudflare proxy)',
+        desc: 'Phill\'s Bitcoin mainnet node (via Cloudflare tunnel)',
         url: 'https://wyltek-rpc.toastman-one.workers.dev/btc',
         proxy: true,
       },
       {
+        id: 'mempool',
+        label: '🌐 mempool.space',
+        desc: 'Public mempool.space REST API',
+        url: 'https://mempool.space/api',
+        proxy: false,
+        apiStyle: 'mempool',
+      },
+      {
         id: 'blockstream',
-        label: '🌐 Blockstream Esplora',
-        desc: 'Blockstream public API (read-only, Esplora format)',
+        label: '🔷 Blockstream',
+        desc: 'Blockstream public Esplora API',
         url: 'https://blockstream.info/api',
         proxy: false,
         apiStyle: 'esplora',
@@ -80,7 +88,25 @@ export const NODE_PRESETS = {
       {
         id: 'custom',
         label: '✏️ Custom',
-        desc: 'Your own Bitcoin node RPC URL',
+        desc: 'Your own Bitcoin node or proxy URL',
+        url: '',
+        proxy: false,
+      },
+    ],
+  },
+  fiber: {
+    mainnet: [
+      {
+        id: 'wyltek',
+        label: '🟢 Wyltek Fiber Node',
+        desc: 'Phill\'s Fiber node (via Cloudflare tunnel)',
+        url: 'https://wyltek-rpc.toastman-one.workers.dev/fiber',
+        proxy: true,
+      },
+      {
+        id: 'custom',
+        label: '✏️ Custom',
+        desc: 'Your own Fiber node RPC URL',
         url: '',
         proxy: false,
       },
@@ -95,8 +121,9 @@ export function loadNodeConfig() {
     if (saved) return JSON.parse(saved)
   } catch {}
   return {
-    ckb: { net: 'mainnet', preset: 'wyltek-light', customUrl: '' },
-    btc: { net: 'mainnet', preset: 'wyltek', customUrl: '' },
+    ckb:   { net: 'mainnet', preset: 'wyltek-light', customUrl: '' },
+    btc:   { net: 'mainnet', preset: 'wyltek',       customUrl: '' },
+    fiber: { net: 'mainnet', preset: 'wyltek',       customUrl: '' },
   }
 }
 
@@ -145,18 +172,22 @@ export async function renderSettings(el, state) {
     <!-- BTC Node -->
     <div class="card" style="margin-bottom:0.75rem">
       <div class="card-title">₿ Bitcoin Node</div>
-
-      <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem">
-        <button class="net-btn ${cfg.btc.net === 'mainnet' ? 'active' : ''}"
-          data-chain="btc" data-net="mainnet"
-          style="flex:1;${netBtnStyle(cfg.btc.net === 'mainnet')}">Mainnet</button>
-      </div>
-
       <div id="btc-presets">
         ${renderPresets('btc', cfg)}
       </div>
       <div id="btc-custom" style="${cfg.btc.preset === 'custom' ? '' : 'display:none'}">
         ${renderCustomInput('btc', cfg)}
+      </div>
+    </div>
+
+    <!-- Fiber Node -->
+    <div class="card" style="margin-bottom:0.75rem">
+      <div class="card-title">🌐 Fiber Node</div>
+      <div id="fiber-presets">
+        ${renderPresets('fiber', cfg)}
+      </div>
+      <div id="fiber-custom" style="${cfg.fiber?.preset === 'custom' ? '' : 'display:none'}">
+        ${renderCustomInput('fiber', cfg)}
       </div>
     </div>
 
@@ -255,7 +286,7 @@ function attachHandlers(el, cfg) {
   })
 
   // Preset radios
-  ;['ckb', 'btc'].forEach(chain => attachPresetHandlers(chain, cfg))
+  ;['ckb', 'btc', 'fiber'].forEach(chain => attachPresetHandlers(chain, cfg))
 
   // Test connection
   document.getElementById('test-conn').addEventListener('click', () => testConnections(cfg))
