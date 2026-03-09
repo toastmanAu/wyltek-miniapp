@@ -476,10 +476,14 @@ function bindSearch() {
   input?.addEventListener('focus', () => showDropdown(input.value))
   input?.addEventListener('input', () => showDropdown(input.value))
 
-  // Close on outside tap
+  // Close on outside tap — but NOT if the pointer started inside the dropdown
+  // (that would kill scroll). Track whether pointerdown was inside dd.
+  let pointerInsideDd = false
   document.addEventListener('pointerdown', e => {
-    if (input && !input.contains(e.target) && dd && !dd.contains(e.target))
+    pointerInsideDd = dd && dd.contains(e.target)
+    if (!pointerInsideDd && input && !input.contains(e.target)) {
       dd.style.display = 'none'
+    }
   }, { capture: true, passive: true })
 }
 
