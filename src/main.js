@@ -235,11 +235,7 @@ authBadge.addEventListener('click', async () => {
   authLabel.textContent = '...'
   try {
     authWithJoyID()
-    // JoyID opens external browser — show hint, auth result comes back via redirect
-    authLabel.textContent = 'Tap after auth ↩'
-    setTimeout(() => {
-      if (!state.address) authLabel.textContent = 'Connect'
-    }, 30000)
+    authLabel.textContent = 'Connect'  // app will reload on JoyID return; reset label cleanly
   } catch { authLabel.textContent = 'Connect' }
 })
 

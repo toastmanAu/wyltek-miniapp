@@ -64,23 +64,44 @@ export function disconnect() {
 
 // Called at boot — if returning from JoyID redirect, parse the result
 function _processCallback() {
+  const url = new URL(location.href)
+  const hasRedirectFlag = url.searchParams.has('joyid-redirect')
+  const hasData = url.searchParams.has('_data_')
+  console.log('[Auth] _processCallback — joyid-redirect:', hasRedirectFlag, '_data_:', hasData, 'href:', location.href.slice(0, 200))
+
   try {
-    if (!isRedirectFromJoyID()) return
+    if (!isRedirectFromJoyID()) {
+      console.log('[Auth] Not a JoyID redirect, skipping callback parse')
+      return
+    }
 
     console.log('[Auth] JoyID redirect detected, parsing callback...')
     const result = authCallback()
+    console.log('[Auth] authCallback result keys:', result ? Object.keys(result) : null)
     console.log('[Auth] authCallback result:', JSON.stringify(result))
 
     const address = result?.address
     if (address) {
       localStorage.setItem('wyltek_address', address)
-      console.log('[Auth] Saved CKB address:', address)
+      console.log('[Auth] ✅ Saved CKB address:', address)
       history.replaceState(null, '', location.pathname)
       window.dispatchEvent(new CustomEvent('joyid-auth', { detail: { address } }))
     } else {
-      console.warn('[Auth] authCallback returned no address:', result)
+      console.warn('[Auth] ❌ authCallback returned no address. Full result:', result)
     }
   } catch (err) {
-    console.warn('[Auth] JoyID callback parse failed:', err.message)
+    console.error('[Auth] ❌ JoyID callback parse failed:', err.message, err)
+    // Last resort: try to extract address from raw _data_ param
+    try {
+      const raw = url.searchParams.get('_data_')
+      if (raw) {
+        console.log('[Auth] Trying raw _data_ decode, length:', raw.length)
+        const decoded = JSON.parse(decodeURIComponent(raw))
+        console.log('[Auth] raw decoded keys:', Object.keys(decoded))
+        console.log('[Auth] raw decoded:', JSON.stringify(decoded).slice(0, 300))
+      }
+    } catch (e2) {
+      console.warn('[Auth] Raw decode also failed:', e2.message)
+    }
   }
 }
