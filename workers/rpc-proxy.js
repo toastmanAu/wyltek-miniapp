@@ -49,39 +49,76 @@ export default {
 
     // ── JoyID auth relay (GET) ─────────────────────────────────────
     if (path === 'joyid-callback') {
-      // JoyID redirects here with ?token=<tok>&_data_=<encoded>&joyid-redirect=true
-      const token = url.searchParams.get('token')
-      const rawData = url.searchParams.get('_data_')
+      // Dump full URL for debugging — JoyID param encoding varies
+      console.log('[joyid-callback] full URL:', request.url)
+      console.log('[joyid-callback] search:', url.search)
 
+      const token = url.searchParams.get('token')
+
+      // JoyID may use _data_ or data param; also may double-encode
+      let rawData = url.searchParams.get('_data_') || url.searchParams.get('data')
+
+      // If rawData starts with '?' JoyID appended a second query string inside the value
+      // e.g. callbackURL was not properly encoded and JoyID appended ?data=... directly
+      if (rawData && rawData.startsWith('?')) {
+        const inner = new URLSearchParams(rawData.slice(1))
+        rawData = inner.get('_data_') || inner.get('data') || rawData
+      }
+
+      // Show debug page if missing params — don't return 400, show what we got
       if (!token || !rawData) {
-        return new Response('Missing token or _data_', { status: 400 })
+        return new Response(`
+          <!doctype html><html><body style="background:#0f1117;color:#fff;font-family:monospace;padding:20px">
+          <h3>JoyID callback debug</h3>
+          <p>token: ${token || 'MISSING'}</p>
+          <p>rawData: ${rawData || 'MISSING'}</p>
+          <p>full search: ${url.search}</p>
+          <p>full URL: ${request.url.slice(0, 500)}</p>
+          </body></html>
+        `, { headers: { 'Content-Type': 'text/html' } })
       }
 
       try {
-        // _data_ is encoded by JoyID's encodeSearch (qs-like encoding wrapping JSON)
-        // The outer structure is {data: {address, ...}, error: null}
-        // Try standard decodeURIComponent + JSON parse
+        // JoyID encodeSearch uses qs library — produces JSON-like string
+        // Outer structure: {data: {address, keyType, pubkey, ...}, error: null}
         let parsed
-        try {
-          parsed = JSON.parse(decodeURIComponent(rawData))
-        } catch {
-          // Try as plain JSON
-          parsed = JSON.parse(rawData)
-        }
-        const address = parsed?.data?.address || parsed?.address
-        if (!address) throw new Error('No address in payload: ' + JSON.stringify(parsed).slice(0, 200))
+        const attempts = []
 
-        // Clean expired tokens
+        // Try 1: direct JSON parse
+        try { parsed = JSON.parse(rawData); attempts.push('direct') } catch {}
+
+        // Try 2: decodeURIComponent then JSON
+        if (!parsed) try { parsed = JSON.parse(decodeURIComponent(rawData)); attempts.push('decoded') } catch {}
+
+        // Try 3: it might be qs-encoded (key=val&key=val) wrapping JSON
+        if (!parsed) try {
+          const inner = new URLSearchParams(rawData)
+          const j = inner.get('data') || inner.get('_data_')
+          if (j) { parsed = JSON.parse(j); attempts.push('qs-inner') }
+        } catch {}
+
+        // Try 4: base64
+        if (!parsed) try {
+          parsed = JSON.parse(atob(rawData.replace(/-/g,'+').replace(/_/g,'/')))
+          attempts.push('base64')
+        } catch {}
+
+        console.log('[joyid-callback] parse attempts:', attempts, 'parsed keys:', parsed ? Object.keys(parsed) : null)
+
+        const address = parsed?.data?.address || parsed?.address
+        if (!address) {
+          // Show full parsed for debugging
+          throw new Error('No address in payload. Keys: ' + (parsed ? JSON.stringify(Object.keys(parsed)) : 'null') +
+            ' | Sample: ' + JSON.stringify(parsed)?.slice(0, 300))
+        }
+
         const now = Date.now()
         for (const [k, v] of AUTH_TOKENS) {
           if (now - v.ts > TOKEN_TTL_MS) AUTH_TOKENS.delete(k)
         }
-
         AUTH_TOKENS.set(token, { address, ts: now })
-        console.log('[joyid-callback] stored address for token', token.slice(0, 8), '->', address)
+        console.log('[joyid-callback] ✅ stored', address, 'for token', token.slice(0, 8))
 
-        // Redirect back into Telegram via t.me deeplink
-        // Telegram intercepts t.me links from the external browser and re-opens the mini app
         const tgDeeplink = `https://t.me/WyltekIndustriesBot/app`
         return new Response(`
           <!doctype html><html><head>
@@ -90,14 +127,21 @@ export default {
           <h2 style="color:#4ade80">✅ Connected!</h2>
           <p>Returning to Telegram…</p>
           <p><a href="${tgDeeplink}" style="color:#4ade80">Tap here if not redirected</a></p>
-          <script>
-            window.location.href = '${tgDeeplink}'
-          </script>
+          <script>window.location.href = '${tgDeeplink}'</script>
           </body></html>
         `, { headers: { 'Content-Type': 'text/html' } })
       } catch (err) {
-        console.error('[joyid-callback] parse error:', err.message, 'raw:', rawData?.slice(0, 200))
-        return new Response('Auth parse failed: ' + err.message, { status: 500 })
+        console.error('[joyid-callback] parse error:', err.message)
+        // Show debug page instead of black screen
+        return new Response(`
+          <!doctype html><html><body style="background:#0f1117;color:#fff;font-family:monospace;padding:20px;word-break:break-all">
+          <h3 style="color:#f87171">Auth parse failed</h3>
+          <p>${err.message}</p>
+          <hr>
+          <p><b>rawData (first 500):</b><br>${String(rawData).slice(0,500)}</p>
+          <p><b>full search:</b><br>${url.search.slice(0,500)}</p>
+          </body></html>
+        `, { headers: { 'Content-Type': 'text/html' } })
       }
     }
 
