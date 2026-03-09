@@ -132,11 +132,20 @@ export default {
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width,initial-scale=1">
           <meta http-equiv="refresh" content="1; url=${tgLink}">
-          </head><body style="font-family:-apple-system,sans-serif;text-align:center;padding:60px 20px;background:#0f1117;color:#fff">
-          <div style="font-size:64px;margin-bottom:16px">&#x2705;</div>
-          <h2 style="color:#4ade80;margin:0 0 12px">Wallet Connected!</h2>
-          <p style="color:#94a3b8;margin:0 0 32px">Returning to Telegram&#x2026;</p>
-          <a href="${tgLink}" style="display:inline-block;padding:12px 24px;background:#4ade80;color:#0f1117;border-radius:8px;text-decoration:none;font-weight:600">Open Telegram</a>
+          <style>
+            body { margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#0f1117; color:#fff; font-family:-apple-system,BlinkMacSystemFont,sans-serif; padding:40px 20px; box-sizing:border-box; }
+            .logo { width:72px; height:72px; border-radius:18px; object-fit:cover; margin-bottom:20px; box-shadow:0 0 32px rgba(74,222,128,0.3); }
+            h2 { color:#4ade80; margin:0 0 10px; font-size:22px; }
+            p { color:#94a3b8; margin:0 0 32px; font-size:15px; }
+            .brand { color:#64748b; font-size:12px; margin-top:40px; letter-spacing:0.05em; text-transform:uppercase; }
+            a.btn { display:inline-block; padding:13px 28px; background:#4ade80; color:#0f1117; border-radius:10px; text-decoration:none; font-weight:700; font-size:15px; }
+          </style>
+          </head><body>
+          <img class="logo" src="https://wyltekindustries.com/wyltek-mark.png" alt="Wyltek">
+          <h2>Wallet Connected!</h2>
+          <p>Returning to Telegram&#x2026;</p>
+          <a class="btn" href="${tgLink}">Open Telegram</a>
+          <div class="brand">Wyltek Industries</div>
           <script>setTimeout(() => { window.location.href = '${tgLink}' }, 800)</script>
           </body></html>`, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
       } catch (err) {
