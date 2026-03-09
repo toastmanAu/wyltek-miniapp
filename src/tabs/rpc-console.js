@@ -706,7 +706,16 @@ function annotateHex(jsonStr) {
   )
 }
 
-// ── Result display ────────────────────────────────────────────────
+// Strip surrounding JSON quotes from a string value (for clean copy/paste into params)
+function cleanForCopy(val) {
+  if (typeof val === 'string') return val
+  const s = String(val)
+  // If it's a JSON-quoted string like "0x..." → strip the quotes
+  if (s.startsWith('"') && s.endsWith('"') && s.length >= 2) {
+    try { return JSON.parse(s) } catch {}
+  }
+  return s
+}
 function renderResult(el, entry) {
   if (!el) return
   const json  = JSON.stringify(entry.error || entry.result, null, 2)
@@ -740,14 +749,15 @@ function renderResult(el, entry) {
   })
 
   document.getElementById('rpc-copy')?.addEventListener('click', () => {
-    navigator.clipboard?.writeText(json)
+    // If result is a plain string, copy without JSON quotes
+    const copyText = entry.result !== null && entry.result !== undefined
+      ? cleanForCopy(typeof entry.result === 'string' ? entry.result : json)
+      : json
+    navigator.clipboard?.writeText(copyText)
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
-    // Offer to save to clipboard tray
-    const label = autoLabel(entry.result !== null && entry.result !== undefined
-      ? (typeof entry.result === 'string' ? entry.result : JSON.stringify(entry.result))
-      : json)
-    const val = typeof entry.result === 'string' ? entry.result : json
-    clipSavePrompt(val, label)
+    // Offer to save to clipboard tray (also clean)
+    const label = autoLabel(copyText)
+    clipSavePrompt(copyText, label)
     const copyBtn = document.getElementById('rpc-copy')
     if (copyBtn) { copyBtn.textContent = '✓ Saved?'; setTimeout(()=>{ copyBtn.textContent='Copy' },1500) }
   })
