@@ -117,17 +117,25 @@ export default {
           if (now - v.ts > TOKEN_TTL_MS) AUTH_TOKENS.delete(k)
         }
         AUTH_TOKENS.set(token, { address, ts: now })
-        console.log('[joyid-callback] ✅ stored', address, 'for token', token.slice(0, 8))
+        console.log('[joyid-callback] ✅ address:', address)
 
-        const tgDeeplink = `https://t.me/WyltekIndustriesBot/app`
+        // Pass address via Telegram startapp param — no shared state needed
+        // Telegram reads it as tg.initDataUnsafe.start_param in the mini app
+        // startapp only allows: A-Z a-z 0-9 _ - (max 64 chars)
+        // CKB address is bech32 — contains only alphanumeric + special chars
+        // Safe encode: base64url (no +/ chars, use -_)
+        const encoded = btoa(address).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+        const tgDeeplink = `https://t.me/WyltekIndustriesBot/app?startapp=jauth_${encoded}`
         return new Response(`
           <!doctype html><html><head>
-          <meta http-equiv="refresh" content="0; url=${tgDeeplink}">
+          <meta http-equiv="refresh" content="1; url=${tgDeeplink}">
           </head><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0f1117;color:#fff">
           <h2 style="color:#4ade80">✅ Connected!</h2>
           <p>Returning to Telegram…</p>
           <p><a href="${tgDeeplink}" style="color:#4ade80">Tap here if not redirected</a></p>
-          <script>window.location.href = '${tgDeeplink}'</script>
+          <script>
+            setTimeout(() => { window.location.href = '${tgDeeplink}' }, 800)
+          </script>
           </body></html>
         `, { headers: { 'Content-Type': 'text/html' } })
       } catch (err) {

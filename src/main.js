@@ -266,6 +266,23 @@ authBadge.addEventListener('click', async () => {
 
 // ── Boot ──────────────────────────────────────────────────────────
 async function boot() {
+  // Check for JoyID auth result delivered via Telegram startapp param
+  // Worker encodes address as base64url in startapp=jauth_<base64url>
+  const jauthParam = tg?.initDataUnsafe?.start_param || ''
+  if (jauthParam.startsWith('jauth_')) {
+    try {
+      const b64 = jauthParam.slice(6).replace(/-/g, '+').replace(/_/g, '/')
+      const address = atob(b64)
+      if (address.startsWith('ckb1') || address.startsWith('ckt1')) {
+        localStorage.setItem('wyltek_address', address)
+        console.log('[boot] JoyID auth from startapp param:', address)
+        cancelAuth()
+      }
+    } catch (e) {
+      console.warn('[boot] Failed to decode jauth startapp param:', e.message)
+    }
+  }
+
   const saved = localStorage.getItem('wyltek_address')
   if (saved) state.address = saved
 
