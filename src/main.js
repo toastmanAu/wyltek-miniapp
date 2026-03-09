@@ -266,20 +266,26 @@ authBadge.addEventListener('click', async () => {
 
 // ── Boot ──────────────────────────────────────────────────────────
 async function boot() {
-  // Check for JoyID auth result delivered via Telegram startapp param
-  // Worker encodes address as base64url in startapp=jauth_<base64url>
+  // Check for JoyID auth result in URL hash (set by Worker callback redirect)
+  // Worker redirects to wyltek-miniapp.pages.dev/#jauth_<base64url-address>
+  const hash = location.hash || ''
   const jauthParam = tg?.initDataUnsafe?.start_param || ''
-  if (jauthParam.startsWith('jauth_')) {
+  const jauthRaw = hash.startsWith('#jauth_') ? hash.slice(7)
+                 : jauthParam.startsWith('jauth_') ? jauthParam.slice(6)
+                 : null
+  if (jauthRaw) {
     try {
-      const b64 = jauthParam.slice(6).replace(/-/g, '+').replace(/_/g, '/')
+      const b64 = jauthRaw.replace(/-/g, '+').replace(/_/g, '/')
       const address = atob(b64)
       if (address.startsWith('ckb1') || address.startsWith('ckt1')) {
         localStorage.setItem('wyltek_address', address)
-        console.log('[boot] JoyID auth from startapp param:', address)
+        console.log('[boot] JoyID auth from hash/startapp:', address)
         cancelAuth()
+        // Clean hash from URL
+        history.replaceState(null, '', location.pathname)
       }
     } catch (e) {
-      console.warn('[boot] Failed to decode jauth startapp param:', e.message)
+      console.warn('[boot] Failed to decode jauth param:', e.message)
     }
   }
 
