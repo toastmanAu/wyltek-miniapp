@@ -22,8 +22,9 @@ const renderers = {
   'tools.wallet': () => import('./tabs/wallet.js').then(m => m.renderWallet),
   'tools.mint':   () => import('./tabs/mint.js').then(m => m.renderMint),
   // Social section
-  'social.lounge':  () => import('./tabs/lounge.js').then(m => m.renderLounge),
-  'social.members': () => import('./tabs/members.js').then(m => m.renderMembers),
+  'social.lounge':   () => import('./tabs/lounge.js').then(m => m.renderLounge),
+  'social.members':  () => import('./tabs/members.js').then(m => m.renderMembers),
+  'social.bounty':   () => import('./tabs/bounty.js').then(m => m.renderBounty),
   // Research section
   'research.browse': () => import('./tabs/research.js').then(m => m.renderResearch),
   'research.queue':  () => import('./tabs/research-queue.js').then(m => m.renderQueue),
@@ -49,6 +50,7 @@ const SUB_TABS = {
   social: [
     { id: 'social.lounge',  icon: '💬', label: 'Lounge',  color: 'var(--green)' },
     { id: 'social.members', icon: '👾', label: 'Members', color: 'var(--accent2)' },
+    { id: 'social.bounty',  icon: '🏆', label: 'Bounty',  color: 'var(--orange)' },
   ],
   research: [
     { id: 'research.browse', icon: '📄', label: 'Findings', color: 'var(--purple)' },
@@ -440,6 +442,7 @@ function initFeedbackButton() {
           tab: state.sub || state.primary,
           tg_user_id:  String(state.tgUser?.id || ''),
           tg_username: state.tgUser?.username || '',
+          ckb_address: state.address || null,
           app_version: '0.1.0',
         }),
       })

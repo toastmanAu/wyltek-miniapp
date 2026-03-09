@@ -191,6 +191,17 @@ export default {
       })
     }
 
+    // ── Leaderboard (GET) ─────────────────────────────────────────
+    if (path === 'leaderboard') {
+      const data = await handleLeaderboard(env)
+      return json(data)
+    }
+
+    // ── GitHub webhook (POST, no JSON pre-read) ───────────────────
+    if (path === 'github-webhook') {
+      return handleGithubWebhook(request, env)
+    }
+
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 })
     }
@@ -256,11 +267,63 @@ async function callBTC(env, body) {
   return res.json()
 }
 
+// ── Supabase helper ───────────────────────────────────────────────
+async function sbInsert(env, table, row) {
+  if (!env.SUPABASE_SERVICE_KEY) return null
+  const res = await fetch(`https://yhntwgjzrzyhyxpiqcts.supabase.co/rest/v1/${table}`, {
+    method: 'POST',
+    headers: {
+      'apikey': env.SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation',
+    },
+    body: JSON.stringify(row),
+  })
+  if (!res.ok) console.error(`[sb] insert ${table} failed:`, await res.text())
+  return res.ok ? res.json() : null
+}
+
+async function sbPatch(env, table, match, patch) {
+  if (!env.SUPABASE_SERVICE_KEY) return null
+  const qs = Object.entries(match).map(([k,v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&')
+  const res = await fetch(`https://yhntwgjzrzyhyxpiqcts.supabase.co/rest/v1/${table}?${qs}`, {
+    method: 'PATCH',
+    headers: {
+      'apikey': env.SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation',
+    },
+    body: JSON.stringify(patch),
+  })
+  if (!res.ok) console.error(`[sb] patch ${table} failed:`, await res.text())
+  return res.ok ? res.json() : null
+}
+
+async function sbSelect(env, table, qs = '') {
+  if (!env.SUPABASE_SERVICE_KEY) return []
+  const res = await fetch(`https://yhntwgjzrzyhyxpiqcts.supabase.co/rest/v1/${table}?${qs}`, {
+    headers: {
+      'apikey': env.SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+    },
+  })
+  return res.ok ? res.json() : []
+}
+
+function isoWeek(d = new Date()) {
+  const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7))
+  const jan1 = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1))
+  return tmp.getUTCFullYear() * 100 + Math.ceil(((tmp - jan1) / 86400000 + 1) / 7)
+}
+
 async function submitFeedback(env, body) {
-  const { type, message, tab, tg_user_id, tg_username, app_version } = body
+  const { type, message, tab, tg_user_id, tg_username, ckb_address, app_version } = body
   if (!type || !message?.trim()) throw new Error('type and message required')
 
-  const repo  = env.FEEDBACK_REPO || 'toastmanAu/wyltek-miniapp'
+  const repo  = env.FEEDBACK_REPO || 'toastmanAu/wyltek-bug-reports'
   const token = env.GITHUB_TOKEN
   if (!token) throw new Error('GITHUB_TOKEN not configured')
 
@@ -275,6 +338,7 @@ async function submitFeedback(env, body) {
     `**Type:** ${emoji} ${type}`,
     `**Tab:** ${tab || 'unknown'}`,
     `**User:** ${userStr}`,
+    `**CKB Address:** ${ckb_address ? `\`${ckb_address}\`` : '_not signed in_'}`,
     `**App version:** ${app_version || 'unknown'}`,
     `**Submitted:** ${new Date().toISOString()}`,
     '',
@@ -302,7 +366,84 @@ async function submitFeedback(env, body) {
   }
 
   const issue = await res.json()
+
+  // Record in Supabase for bounty tracking (fire-and-forget)
+  if (ckb_address) {
+    const basePoints = type === 'bug' ? 2 : 1
+    sbInsert(env, 'bug_reports', {
+      github_issue_number: issue.number,
+      github_issue_url: issue.html_url,
+      reporter_address: ckb_address,
+      reporter_tg_id: tg_user_id || null,
+      reporter_tg_username: tg_username || null,
+      type,
+      status: 'open',
+      title: title,
+      week_number: isoWeek(),
+      points_awarded: basePoints,
+    })
+  }
+
   return { ok: true, issue_number: issue.number, url: issue.html_url }
+}
+
+// ── GitHub webhook — label changes → update Supabase ─────────────
+async function handleGithubWebhook(request, env) {
+  // Verify signature
+  const sig = request.headers.get('x-hub-signature-256') || ''
+  const secret = env.GITHUB_WEBHOOK_SECRET
+  if (secret) {
+    const body = await request.clone().text()
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+    const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body))
+    const expected = 'sha256=' + Array.from(new Uint8Array(mac)).map(b => b.toString(16).padStart(2,'0')).join('')
+    if (expected !== sig) return new Response('Unauthorized', { status: 401 })
+  }
+
+  const event = request.headers.get('x-github-event')
+  const payload = await request.json()
+
+  if (event === 'issues' && (payload.action === 'labeled' || payload.action === 'unlabeled' || payload.action === 'closed' || payload.action === 'reopened')) {
+    const issue = payload.issue
+    const labels = issue.labels.map(l => l.name)
+
+    // Determine status from labels
+    let status = 'open'
+    let severity = null
+    if (labels.includes('confirmed') || labels.includes('bug') && issue.state === 'closed') status = 'confirmed'
+    if (labels.includes('duplicate')) status = 'duplicate'
+    if (labels.includes('wontfix') || labels.includes('invalid')) status = 'wontfix'
+    if (issue.state === 'closed' && status === 'open') status = 'closed'
+
+    if (labels.includes('critical')) severity = 'critical'
+    else if (labels.includes('high')) severity = 'high'
+    else if (labels.includes('medium')) severity = 'medium'
+    else if (labels.includes('low')) severity = 'low'
+
+    // Recalculate points
+    const type = labels.includes('suggestion') ? 'suggestion' : labels.includes('praise') ? 'praise' : 'bug'
+    let pts = type === 'bug' ? 2 : 1
+    if (status === 'confirmed') pts += 5
+    if (status === 'duplicate') pts = Math.max(pts - 1, 0)
+    if (status === 'confirmed' && severity === 'critical') pts += 10
+    if (status === 'confirmed' && severity === 'high') pts += 4
+
+    await sbPatch(env, 'bug_reports', { github_issue_number: issue.number }, {
+      status,
+      severity,
+      points_awarded: pts,
+      resolved_at: issue.state === 'closed' ? new Date().toISOString() : null,
+    })
+  }
+
+  return new Response('ok')
+}
+
+// ── Leaderboard endpoint ──────────────────────────────────────────
+async function handleLeaderboard(env) {
+  const rows = await sbSelect(env, 'leaderboard', 'order=week_rank.asc&limit=20')
+  const weeks = await sbSelect(env, 'bounty_weeks', 'order=week_number.desc&limit=3')
+  return { leaderboard: rows, recent_payouts: weeks, current_week: isoWeek() }
 }
 
 function json(data, status = 200) {
