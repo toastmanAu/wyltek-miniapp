@@ -246,20 +246,22 @@ authBadge.addEventListener('click', async () => {
     })
     return
   }
-  authLabel.textContent = 'Waiting…'
+  authLabel.textContent = 'Opening JoyID…'
   authWithJoyID(
-    // onSuccess — called when Worker relay delivers the address
+    // onSuccess — only fires if polling catches it before close (unlikely)
     (address) => {
       state.address = address
       updateAuthUI()
       tg?.HapticFeedback?.notificationOccurred('success')
     },
-    // onError
     (err) => {
       console.warn('[main] Auth error:', err.message)
       authLabel.textContent = 'Connect'
     }
   )
+  // Close this mini app instance after opening JoyID browser
+  // The startapp deeplink will open a fresh signed-in instance
+  setTimeout(() => tg?.close(), 600)
 })
 
 // ── Boot ──────────────────────────────────────────────────────────
