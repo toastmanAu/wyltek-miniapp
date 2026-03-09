@@ -1,6 +1,4 @@
-/**
- * Chain tab v4 — live stats + inline RPC console
- */
+import { startBlockPulse, stopBlockPulse } from '../vfx.js'
 
 const CKB_PUBLIC  = 'https://mainnet.ckbapp.dev/rpc'
 const BTC_MEMPOOL = 'https://mempool.space/api'
@@ -21,6 +19,7 @@ let activeChain = 'ckb'
 let rpcHistory  = []
 
 export async function renderChain(el, state) {
+  stopBlockPulse()   // stop any previous pulse
   el.innerHTML = `
     <div class="chain-seg">
       <button class="chain-seg-btn ckb active" data-chain="ckb">⚡ CKB</button>
@@ -86,7 +85,7 @@ async function renderCKB(panel, state) {
 
   panel.innerHTML = `
     <div class="stat-hero ckb-hero">
-      <div class="stat-hero-label">CKB MAINNET</div>
+      <div class="stat-hero-label"><span class="live-dot"></span>CKB MAINNET</div>
       <div class="stat-hero-value">${blockNum.toLocaleString()}</div>
       <div class="stat-hero-sub">Block height · <span style="color:var(--accent);opacity:0.8">${ageStr}</span></div>
     </div>
@@ -160,6 +159,9 @@ async function renderCKB(panel, state) {
   document.getElementById('ckb-to-rpc')?.addEventListener('click', () => {
     document.querySelector('.chain-seg-btn.rpc')?.click()
   })
+
+  // Start live block pulse
+  startBlockPulse(blockNum)
 }
 
 /* ── BTC Stats ─────────────────────────────────────────────────── */
@@ -187,7 +189,7 @@ async function renderBTC(panel) {
 
   panel.innerHTML = `
     <div class="stat-hero btc-hero">
-      <div class="stat-hero-label">BITCOIN MAINNET</div>
+      <div class="stat-hero-label"><span class="live-dot" style="background:#f7931a"></span>BITCOIN MAINNET</div>
       <div class="stat-hero-value">${height}</div>
       <div class="stat-hero-sub">Block height</div>
     </div>

@@ -463,3 +463,34 @@ body {
 }
 .rpc-hist:active { border-color: var(--border2); background: var(--surface2); }
 .rpc-hist-method { font-family: 'SF Mono',monospace; font-size: 0.78rem; font-weight: 600; color: var(--purple); }
+
+/* ── VFX / particle layer z-index fixes ──────────────────────── */
+#particle-canvas { z-index: 0; }
+#app-header, #bottom-nav { z-index: 10; }
+#tab-content { z-index: 1; position: relative; }
+
+/* ── Tool btn glow on hover/press ────────────────────────────── */
+.tool-btn {
+  transition: transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.tool-btn:active {
+  box-shadow: 0 0 0 2px rgba(0,212,255,0.25), 0 4px 20px rgba(0,0,0,0.4);
+}
+.tool-btn[data-color="rgba(0,212,255,0.12)"]:active { border-color: rgba(0,212,255,0.4); }
+.tool-btn[data-color="rgba(139,92,246,0.12)"]:active { border-color: rgba(139,92,246,0.4); }
+.tool-btn[data-color="rgba(16,185,129,0.12)"]:active  { border-color: rgba(16,185,129,0.4); }
+.tool-btn[data-color="rgba(59,130,246,0.12)"]:active  { border-color: rgba(59,130,246,0.4); }
+
+/* ── Nav active glow ──────────────────────────────────────────── */
+.nav-btn.active .nav-icon {
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+/* ── Stat chip hover ──────────────────────────────────────────── */
+.stat-chip {
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.stat-chip:active {
+  transform: scale(0.96);
+  box-shadow: 0 0 0 1px rgba(0,212,255,0.2);
+}

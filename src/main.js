@@ -5,6 +5,7 @@
 
 import './style.css'
 import { initTransitions } from './transition.js'
+import { initParticles, initRipple, initHeroShimmer, injectLiveDotCSS } from './vfx.js'
 import { initJoyID, authWithJoyID, getConnectedAddress } from './auth.js'
 import { renderHome }     from './tabs/home.js'
 import { renderChain }    from './tabs/chain.js'
@@ -67,6 +68,10 @@ export async function navigate(tab) {
   content.innerHTML = '<div class="spinner"></div>'
   try {
     await TABS[tab](content, state)
+    // Stagger animate the top-level children
+    content.classList.remove('stagger')
+    void content.offsetWidth
+    content.classList.add('stagger')
   } catch (err) {
     content.innerHTML = `<div class="empty-state">
       <div class="icon">⚠️</div>
@@ -148,7 +153,11 @@ async function boot() {
   await initJoyID()
   await updateAuthUI()
 
-  // Wire hero expand transitions (must be after DOM is ready)
+  // VFX layer
+  injectLiveDotCSS()
+  initParticles()
+  initRipple()
+  initHeroShimmer()
   initTransitions(navigate)
 
   // Deeplink: t.me/WyltekIndustriesBot/app?startapp=chain
@@ -157,6 +166,40 @@ async function boot() {
   const startTab   = validTabs.includes(startParam) ? startParam : 'home'
 
   await navigate(startTab)
+  // Logo easter egg — tap for glitch + particle burst
+  document.querySelector('.logo-mark')?.addEventListener('click', () => {
+    const logo = document.querySelector('.logo-mark')
+    if (!logo) return
+    logo.classList.remove('glitch')
+    void logo.offsetWidth
+    logo.classList.add('glitch')
+    window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('heavy')
+    spawnBurst(logo.getBoundingClientRect())
+  })
+}
+
+function spawnBurst(rect) {
+  const cx = rect.left + rect.width / 2
+  const cy = rect.top  + rect.height / 2
+  for (let i = 0; i < 12; i++) {
+    const dot = document.createElement('div')
+    const angle = (i / 12) * Math.PI * 2
+    const dist  = 30 + Math.random() * 40
+    dot.style.cssText = `
+      position:fixed; z-index:999; border-radius:50%;
+      width:5px; height:5px;
+      background:hsl(${185 + Math.random()*40},100%,65%);
+      left:${cx}px; top:${cy}px;
+      pointer-events:none;
+      transition: transform ${0.4+Math.random()*0.3}s ease-out, opacity 0.5s ease-out;
+    `
+    document.body.appendChild(dot)
+    requestAnimationFrame(() => {
+      dot.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px) scale(0)`
+      dot.style.opacity   = '0'
+    })
+    setTimeout(() => dot.remove(), 800)
+  }
 }
 
 boot()
