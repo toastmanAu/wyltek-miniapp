@@ -48,11 +48,21 @@ export async function renderBounty(el, state) {
 
     <div class="bounty-section-title" style="margin-top:1.25rem">Recent Payouts</div>
     <div id="bounty-payouts"><div class="spinner"></div></div>
+
+    <div style="margin-top:1.25rem;text-align:center">
+      <button id="bounty-gh-link" class="btn-ghost-link">
+        🐛 View Full Bug Board on GitHub ↗
+      </button>
+    </div>
   `
 
   updateCountdown()
   setInterval(updateCountdown, 60000)
   await loadBounty(state)
+
+  document.getElementById('bounty-gh-link')?.addEventListener('click', () => {
+    window.Telegram?.WebApp?.openLink('https://github.com/toastmanAu/wyltek-bug-reports/issues')
+  })
 }
 
 function updateCountdown() {

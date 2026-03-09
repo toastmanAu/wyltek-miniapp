@@ -1069,8 +1069,12 @@ body:has(.sub-nav.visible) #tab-content {
 /* ── Research detail panel ──────────────────────────────────────── */
 .research-item-hint { font-size: 0.65rem; color: var(--accent); margin-top: 0.35rem; opacity: 0.8; }
 .research-panel {
-  position: absolute; inset: 0; background: var(--bg);
-  display: flex; flex-direction: column; z-index: 20;
+  position: fixed;
+  top: var(--header-h);
+  left: 0; right: 0;
+  bottom: calc(52px + env(safe-area-inset-bottom));
+  background: var(--bg);
+  display: flex; flex-direction: column; z-index: 50;
   animation: slideUp 0.2s ease;
 }
 .research-panel.hidden { display: none; }
@@ -1157,3 +1161,18 @@ body:has(.sub-nav.visible) #tab-content {
 .payout-week { font-size: 0.72rem; font-weight: 700; color: var(--text2); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .payout-row { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text); padding: 0.2rem 0; }
 .payout-row a { color: var(--accent); text-decoration: none; }
+
+/* Ghost link button */
+.btn-ghost-link {
+  display: inline-block;
+  padding: 0.6rem 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: border-color 0.15s, background 0.15s;
+  margin-bottom: 1rem;
+}
+.btn-ghost-link:active { background: var(--surface); border-color: var(--accent); }
