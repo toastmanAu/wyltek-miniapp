@@ -60,7 +60,8 @@ export function authWithJoyID(onSuccess, onError) {
       window.open(url, '_blank')
     }
 
-    // Start polling Worker for auth result
+    // Store token globally so activated handler can re-poll on TG resume
+    window._joyidPendingToken = sessionToken
     _startPolling(sessionToken, onSuccess, onError)
   } catch (err) {
     console.error('[Auth] JoyID connect failed:', err)
@@ -106,11 +107,13 @@ function _startPolling(token, onSuccess, onError) {
 
       if (data.address) {
         cancelAuth()
+        window._joyidPendingToken = null
         localStorage.setItem('wyltek_address', data.address)
         console.log('[Auth] ✅ Got address from relay:', data.address)
         if (onSuccess) onSuccess(data.address)
       } else if (data.error) {
         cancelAuth()
+        window._joyidPendingToken = null
         console.error('[Auth] Poll error:', data.error)
         if (onError) onError(new Error(data.error))
       }

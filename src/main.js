@@ -84,7 +84,23 @@ if (tg) {
     import('./vfx.js').then(m => m.stopBlockPulse())
   })
   tg.onEvent('activated', () => {
-    // tab will re-init its own polling on next navigate if needed
+    // If we have a pending auth token, do an immediate poll on resume
+    // (interval may have been suspended while TG WebView was backgrounded)
+    const pendingToken = window._joyidPendingToken
+    if (pendingToken && !state.address) {
+      fetch(`https://wyltek-rpc.toastman-one.workers.dev/joyid-poll?token=${pendingToken}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.address) {
+            state.address = data.address
+            localStorage.setItem('wyltek_address', data.address)
+            updateAuthUI()
+            tg?.HapticFeedback?.notificationOccurred('success')
+            window._joyidPendingToken = null
+          }
+        })
+        .catch(() => {})
+    }
   })
 }
 

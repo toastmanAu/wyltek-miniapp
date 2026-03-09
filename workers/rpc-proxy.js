@@ -80,13 +80,18 @@ export default {
         AUTH_TOKENS.set(token, { address, ts: now })
         console.log('[joyid-callback] stored address for token', token.slice(0, 8), '->', address)
 
-        // Redirect to a simple success page so the browser closes cleanly
+        // Redirect back into Telegram via t.me deeplink
+        // Telegram intercepts t.me links from the external browser and re-opens the mini app
+        const tgDeeplink = `https://t.me/WyltekIndustriesBot/app`
         return new Response(`
-          <!doctype html><html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0f1117;color:#fff">
+          <!doctype html><html><head>
+          <meta http-equiv="refresh" content="0; url=${tgDeeplink}">
+          </head><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0f1117;color:#fff">
           <h2 style="color:#4ade80">✅ Connected!</h2>
-          <p>Switch back to Telegram — your wallet is now linked.</p>
+          <p>Returning to Telegram…</p>
+          <p><a href="${tgDeeplink}" style="color:#4ade80">Tap here if not redirected</a></p>
           <script>
-            setTimeout(() => { try { window.close() } catch(e) {} }, 2000)
+            window.location.href = '${tgDeeplink}'
           </script>
           </body></html>
         `, { headers: { 'Content-Type': 'text/html' } })
