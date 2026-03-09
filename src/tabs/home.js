@@ -92,27 +92,27 @@ export async function renderHome(el, state) {
     <!-- Tool grid -->
     <div class="section-header">Tools</div>
     <div class="tool-grid">
-      <button class="tool-btn" data-tab="chain">
+      <button class="tool-btn" data-tab="chain" data-color="rgba(0,212,255,0.12)">
         <div class="tool-icon">⛓️</div>
         <div class="tool-label">Chain</div>
         <div class="tool-sub">CKB · BTC</div>
       </button>
-      <button class="tool-btn" data-tab="research">
+      <button class="tool-btn" data-tab="research" data-color="rgba(139,92,246,0.12)">
         <div class="tool-icon">🔬</div>
         <div class="tool-label">Research</div>
         <div class="tool-sub">Findings</div>
       </button>
-      <button class="tool-btn" data-tab="lounge">
+      <button class="tool-btn" data-tab="lounge" data-color="rgba(16,185,129,0.12)">
         <div class="tool-icon">💬</div>
         <div class="tool-label">Lounge</div>
         <div class="tool-sub">Chat</div>
       </button>
-      <button class="tool-btn" data-tab="fiber">
+      <button class="tool-btn" data-tab="fiber" data-color="rgba(139,92,246,0.12)">
         <div class="tool-icon">⚡</div>
         <div class="tool-label">Fiber</div>
         <div class="tool-sub">Channels</div>
       </button>
-      <button class="tool-btn" data-tab="members">
+      <button class="tool-btn" data-tab="members" data-color="rgba(59,130,246,0.12)">
         <div class="tool-icon">👾</div>
         <div class="tool-label">Members</div>
         <div class="tool-sub">DOBs</div>
@@ -135,15 +135,11 @@ export async function renderHome(el, state) {
     </div>
   `
 
-  // Tool button handlers
-  el.querySelectorAll('.tool-btn').forEach(btn => {
+  // Tool button handlers — data-tab ones are handled by transition.js
+  // Only wire up data-href (external links)
+  el.querySelectorAll('.tool-btn[data-href]').forEach(btn => {
     btn.addEventListener('click', () => {
-      if (btn.dataset.tab) {
-        navigate(btn.dataset.tab)
-        window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
-      } else if (btn.dataset.href) {
-        window.Telegram?.WebApp?.openLink(btn.dataset.href)
-      }
+      window.Telegram?.WebApp?.openLink(btn.dataset.href)
     })
   })
 

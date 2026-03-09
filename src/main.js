@@ -4,6 +4,7 @@
  */
 
 import './style.css'
+import { initTransitions } from './transition.js'
 import { initJoyID, authWithJoyID, getConnectedAddress } from './auth.js'
 import { renderHome }     from './tabs/home.js'
 import { renderChain }    from './tabs/chain.js'
@@ -146,6 +147,9 @@ async function boot() {
 
   await initJoyID()
   await updateAuthUI()
+
+  // Wire hero expand transitions (must be after DOM is ready)
+  initTransitions(navigate)
 
   // Deeplink: t.me/WyltekIndustriesBot/app?startapp=chain
   const startParam = tg?.initDataUnsafe?.start_param || ''
