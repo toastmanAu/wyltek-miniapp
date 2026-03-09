@@ -234,15 +234,21 @@ authBadge.addEventListener('click', async () => {
   }
   authLabel.textContent = '...'
   try {
-    const addr = await authWithJoyID()
-    if (addr) {
-      state.address = addr
-      localStorage.setItem('wyltek_address', addr)
-      updateAuthUI()
-      navigate(state.sub)
-      tg?.HapticFeedback?.notificationOccurred('success')
-    }
+    authWithJoyID()
+    // JoyID opens external browser — show hint, auth result comes back via redirect
+    authLabel.textContent = 'Tap after auth ↩'
+    setTimeout(() => {
+      if (!state.address) authLabel.textContent = 'Connect'
+    }, 30000)
   } catch { authLabel.textContent = 'Connect' }
+})
+
+// Listen for JoyID auth callback (fires when app reloads after redirect)
+window.addEventListener('joyid-auth', (e) => {
+  state.address = e.detail.address
+  localStorage.setItem('wyltek_address', e.detail.address)
+  updateAuthUI()
+  tg?.HapticFeedback?.notificationOccurred('success')
 })
 
 // ── Boot ──────────────────────────────────────────────────────────
