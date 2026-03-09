@@ -48,9 +48,13 @@ export default {
     catch { return json({ error: 'Invalid JSON' }, 400) }
 
     try {
-      const result = chain === 'btc'
-        ? await callBTC(env, body)
-        : await callTunnel(chain, body, env)
+      if (chain === 'btc') {
+        result = await callBTC(env, body)
+      } else if (chain === 'feedback') {
+        result = await submitFeedback(env, body)
+      } else {
+        result = await callTunnel(chain, body, env)
+      }
       return json(result)
     } catch (err) {
       return json({ error: err.message }, 502)
@@ -96,6 +100,55 @@ async function callBTC(env, body) {
     body: JSON.stringify(body),
   })
   return res.json()
+}
+
+async function submitFeedback(env, body) {
+  const { type, message, tab, tg_user_id, tg_username, app_version } = body
+  if (!type || !message?.trim()) throw new Error('type and message required')
+
+  const repo  = env.FEEDBACK_REPO || 'toastmanAu/wyltek-miniapp'
+  const token = env.GITHUB_TOKEN
+  if (!token) throw new Error('GITHUB_TOKEN not configured')
+
+  const emoji = type === 'bug' ? '🐛' : type === 'suggestion' ? '💡' : '👍'
+  const title = `${emoji} [${type}] ${message.trim().slice(0, 72)}${message.length > 72 ? '…' : ''}`
+
+  const userStr = tg_username
+    ? `@${tg_username} (ID: ${tg_user_id})`
+    : `User ID: ${tg_user_id || 'unknown'}`
+
+  const issueBody = [
+    `**Type:** ${emoji} ${type}`,
+    `**Tab:** ${tab || 'unknown'}`,
+    `**User:** ${userStr}`,
+    `**App version:** ${app_version || 'unknown'}`,
+    `**Submitted:** ${new Date().toISOString()}`,
+    '',
+    '---',
+    '',
+    message.trim(),
+  ].join('\n')
+
+  const labels = ['user-feedback', type === 'bug' ? 'bug' : type === 'suggestion' ? 'suggestion' : 'praise']
+
+  const res = await fetch(`https://api.github.com/repos/${repo}/issues`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `token ${token}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'wyltek-rpc-worker',
+      'Accept': 'application/vnd.github.v3+json',
+    },
+    body: JSON.stringify({ title, body: issueBody, labels }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`GitHub API error ${res.status}: ${err.slice(0, 200)}`)
+  }
+
+  const issue = await res.json()
+  return { ok: true, issue_number: issue.number, url: issue.html_url }
 }
 
 function json(data, status = 200) {

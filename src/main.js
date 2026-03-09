@@ -287,6 +287,7 @@ async function boot() {
                    : 'home'
 
   await navigate(startSub)
+  initFeedbackButton()
 }
 
 function spawnBurst(rect) {
@@ -313,3 +314,107 @@ function spawnBurst(rect) {
 }
 
 boot()
+
+// ── Feedback button ───────────────────────────────────────────────
+function initFeedbackButton() {
+  // Inject persistent bug button
+  const btn = document.createElement('button')
+  btn.id = 'feedback-btn'
+  btn.innerHTML = '🐛'
+  btn.title = 'Send feedback'
+  btn.setAttribute('aria-label', 'Send feedback')
+  document.body.appendChild(btn)
+
+  // Inject bottom sheet
+  const sheet = document.createElement('div')
+  sheet.id = 'feedback-sheet'
+  sheet.innerHTML = `
+    <div class="fb-sheet-inner">
+      <div class="fb-handle"></div>
+      <div class="fb-title">Send Feedback</div>
+      <div class="fb-type-row">
+        <button class="fb-type-btn active" data-type="bug">🐛 Bug</button>
+        <button class="fb-type-btn" data-type="suggestion">💡 Idea</button>
+        <button class="fb-type-btn" data-type="praise">👍 Praise</button>
+      </div>
+      <textarea id="fb-message" class="fb-textarea"
+        placeholder="Describe the bug, idea, or feedback…" rows="4"></textarea>
+      <div class="fb-hint">Sent anonymously with your current tab + app version. Opens a GitHub issue.</div>
+      <button id="fb-submit" class="btn btn-accent btn-full">Send</button>
+      <div id="fb-status" class="fb-status"></div>
+    </div>
+  `
+  document.body.appendChild(sheet)
+
+  let selectedType = 'bug'
+  let sheetOpen = false
+
+  // Type buttons
+  sheet.querySelectorAll('.fb-type-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      sheet.querySelectorAll('.fb-type-btn').forEach(x => x.classList.remove('active'))
+      b.classList.add('active')
+      selectedType = b.dataset.type
+      window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    })
+  })
+
+  // Open/close
+  btn.addEventListener('click', () => {
+    sheetOpen = !sheetOpen
+    sheet.classList.toggle('open', sheetOpen)
+    if (sheetOpen) {
+      document.getElementById('fb-message')?.focus()
+      document.getElementById('fb-status').textContent = ''
+    }
+    window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
+  })
+
+  // Close on backdrop tap
+  sheet.addEventListener('click', e => {
+    if (e.target === sheet) {
+      sheetOpen = false
+      sheet.classList.remove('open')
+    }
+  })
+
+  // Submit
+  document.getElementById('fb-submit').addEventListener('click', async () => {
+    const msg = document.getElementById('fb-message').value.trim()
+    if (!msg) return
+    const submitBtn = document.getElementById('fb-submit')
+    const statusEl  = document.getElementById('fb-status')
+    submitBtn.disabled = true
+    submitBtn.textContent = 'Sending…'
+    statusEl.textContent = ''
+
+    try {
+      const res = await fetch('https://wyltek-rpc.toastman-one.workers.dev/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: selectedType,
+          message: msg,
+          tab: state.sub || state.primary,
+          tg_user_id:  String(state.tgUser?.id || ''),
+          tg_username: state.tgUser?.username || '',
+          app_version: '0.1.0',
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        document.getElementById('fb-message').value = ''
+        statusEl.innerHTML = `✅ Thanks! <a href="${data.url}" target="_blank" style="color:var(--accent)">Issue #${data.issue_number}</a>`
+        window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+        setTimeout(() => { sheetOpen = false; sheet.classList.remove('open') }, 2500)
+      } else {
+        throw new Error(data.error || 'Unknown error')
+      }
+    } catch(err) {
+      statusEl.textContent = '❌ ' + err.message
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error')
+    }
+    submitBtn.disabled = false
+    submitBtn.textContent = 'Send'
+  })
+}
