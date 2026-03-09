@@ -77,44 +77,44 @@ export default {
       }
 
       try {
-        // JoyID encodeSearch uses qs library — produces JSON-like string
-        // Outer structure: {data: {address, keyType, pubkey, ...}, error: null}
+        // JoyID encodes result in _data_ param
+        // Observed format: _data_ = "?data={json}" (double-encoded, starts with ?data=)
+        // OR _data_ = "{json}" (direct JSON)
+        // OR _data_ = base64(json)
         let parsed
         const attempts = []
 
-        // Try 1: direct JSON parse
-        try { parsed = JSON.parse(rawData); attempts.push('direct') } catch {}
+        // Unwrap ?data= or ?_data_= prefix if present
+        let rawStr = rawData
+        if (rawStr.startsWith('?')) {
+          const inner = new URLSearchParams(rawStr.slice(1))
+          rawStr = inner.get('data') || inner.get('_data_') || rawStr
+        }
+        // Also try URL-decoding the unwrapped string
+        let rawStrDecoded = rawStr
+        try { rawStrDecoded = decodeURIComponent(rawStr) } catch {}
 
-        // Try 2: decodeURIComponent then JSON
-        if (!parsed) try { parsed = JSON.parse(decodeURIComponent(rawData)); attempts.push('decoded') } catch {}
+        // Try 1: direct JSON on unwrapped string
+        try { parsed = JSON.parse(rawStr); attempts.push('direct') } catch {}
 
-        // Try 3: it might be qs-encoded (key=val&key=val) wrapping JSON
+        // Try 2: decoded JSON
+        if (!parsed) try { parsed = JSON.parse(rawStrDecoded); attempts.push('decoded') } catch {}
+
+        // Try 3: base64
         if (!parsed) try {
-          const inner = new URLSearchParams(rawData)
-          const j = inner.get('data') || inner.get('_data_')
-          if (j) { parsed = JSON.parse(j); attempts.push('qs-inner') }
-        } catch {}
-
-        // Try 4: base64
-        if (!parsed) try {
-          parsed = JSON.parse(atob(rawData.replace(/-/g,'+').replace(/_/g,'/')))
+          parsed = JSON.parse(atob(rawStr.replace(/-/g,'+').replace(/_/g,'/')))
           attempts.push('base64')
         } catch {}
 
         console.log('[joyid-callback] parse attempts:', attempts, 'parsed keys:', parsed ? Object.keys(parsed) : null)
 
-        const address = parsed?.data?.address || parsed?.address
+        // Address is at top level OR nested under .data
+        const address = parsed?.address || parsed?.data?.address
         if (!address) {
-          // Show full parsed for debugging
-          throw new Error('No address in payload. Keys: ' + (parsed ? JSON.stringify(Object.keys(parsed)) : 'null') +
+          throw new Error('No address found. Keys: ' + (parsed ? JSON.stringify(Object.keys(parsed)) : 'null') +
             ' | Sample: ' + JSON.stringify(parsed)?.slice(0, 300))
         }
 
-        const now = Date.now()
-        for (const [k, v] of AUTH_TOKENS) {
-          if (now - v.ts > TOKEN_TTL_MS) AUTH_TOKENS.delete(k)
-        }
-        AUTH_TOKENS.set(token, { address, ts: now })
         console.log('[joyid-callback] ✅ address:', address)
 
         // Store in Cloudflare KV — shared across all isolates, 5min TTL
