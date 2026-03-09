@@ -4,8 +4,8 @@
 
 const WORKER = 'https://wyltek-rpc.toastman-one.workers.dev'
 const MEDALS = ['🥇', '🥈', '🥉']
-const POOL_CKB = 1000
-const PRIZE_SPLIT = [500, 300, 200]
+const POOL_CKB = 2000
+const PRIZE_SPLIT = [1000, 600, 400]
 
 export async function renderBounty(el, state) {
   el.innerHTML = `
