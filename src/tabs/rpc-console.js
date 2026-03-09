@@ -686,15 +686,23 @@ function hexAnnotation(hex) {
 
 // Annotate JSON string: replace hex number values with hex + decoded inline
 function annotateHex(jsonStr) {
-  // Match JSON string values like: "0x1a2b3c" (in quotes)
-  // and bare hex values (unlikely in JSON but handle anyway)
-  return esc(jsonStr).replace(
-    /(&quot;)(0x[0-9a-fA-F]{1,16})(&quot;)/g,
-    (match, q1, hex, q2) => {
+  // Annotate BEFORE escaping — match raw "0x..." string values in JSON
+  // Then escape the whole thing, but protect our annotation spans
+  const annotated = jsonStr.replace(
+    /"(0x[0-9a-fA-F]{1,16})"/g,
+    (match, hex) => {
       const ann = hexAnnotation(hex)
       if (!ann) return match
-      return `${q1}${hex}${q2}<span class="rpc-hex-ann">${esc(ann)}</span>`
+      // Use a placeholder to survive esc(), replace after
+      return `"${hex}"\x00ANN\x00${ann}\x00ENDANN\x00`
     }
+  )
+  // Now escape HTML entities
+  const escaped = esc(annotated)
+  // Restore annotation spans
+  return escaped.replace(
+    /\x00ANN\x00([^\x00]*)\x00ENDANN\x00/g,
+    (_, ann) => `<span class="rpc-hex-ann">${esc(ann)}</span>`
   )
 }
 
