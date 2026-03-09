@@ -76,7 +76,16 @@ if (tg) {
   tg.ready()
   tg.expand()
   tg.enableClosingConfirmation()
+  tg.disableVerticalSwipes()   // prevent accidental close on scroll
   document.documentElement.style.setProperty('--bg', tg.themeParams.bg_color || '#07090f')
+
+  // Pause live polls when app is backgrounded, resume when foregrounded
+  tg.onEvent('deactivated', () => {
+    import('./vfx.js').then(m => m.stopBlockPulse())
+  })
+  tg.onEvent('activated', () => {
+    // tab will re-init its own polling on next navigate if needed
+  })
 }
 
 // ── App state ─────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
  * Talks to ckbnode Fiber RPC via Worker → SSH tunnel → 127.0.0.1:8227
  */
 
-const FIBER_URL = 'https://wyltek-rpc.toastmanau.workers.dev/fiber'
+const FIBER_URL = 'https://wyltek-rpc.toastman-one.workers.dev/fiber'
 
 async function fiberRpc(method, params = {}) {
   const res = await fetch(FIBER_URL, {

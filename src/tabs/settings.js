@@ -10,7 +10,7 @@ export const NODE_PRESETS = {
         id: 'wyltek-light',
         label: '⚡ Wyltek Light Client',
         desc: 'Phill\'s CKB light client — tx history, UTXOs, verified headers',
-        url: 'https://wyltek-rpc.toastmanau.workers.dev/ckb-light',
+        url: 'https://wyltek-rpc.toastman-one.workers.dev/ckb-light',
         proxy: true,
         lightClient: true,
       },
@@ -18,7 +18,7 @@ export const NODE_PRESETS = {
         id: 'wyltek',
         label: '🟢 Wyltek Full Node',
         desc: 'Phill\'s CKB mainnet full node (via Cloudflare proxy)',
-        url: 'https://wyltek-rpc.toastmanau.workers.dev/ckb',
+        url: 'https://wyltek-rpc.toastman-one.workers.dev/ckb',
         proxy: true,
       },
       {
@@ -66,7 +66,7 @@ export const NODE_PRESETS = {
         id: 'wyltek',
         label: '🟢 Wyltek Node',
         desc: 'Phill\'s Bitcoin mainnet node (via Cloudflare proxy)',
-        url: 'https://wyltek-rpc.toastmanau.workers.dev/btc',
+        url: 'https://wyltek-rpc.toastman-one.workers.dev/btc',
         proxy: true,
       },
       {

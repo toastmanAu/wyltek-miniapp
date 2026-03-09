@@ -17,7 +17,7 @@
 
 import { loadNodeConfig } from './tabs/settings.js'
 
-const WORKER_BASE = 'https://wyltek-rpc.toastmanau.workers.dev'
+const WORKER_BASE = 'https://wyltek-rpc.toastman-one.workers.dev'
 
 async function lightRpc(method, params = []) {
   const cfg = loadNodeConfig()

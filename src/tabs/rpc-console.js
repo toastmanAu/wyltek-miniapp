@@ -178,8 +178,8 @@ const FIBER_METHODS = [
 const ENDPOINTS = [
   { id:'ckb-pub',     label:'CKB Mainnet',         shortLabel:'CKB ↑',    url:'https://mainnet.ckbapp.dev/rpc',                              methods:CKB_METHODS,   rpcType:'ckb'   },
   { id:'ckb-testnet', label:'CKB Testnet',          shortLabel:'Testnet',  url:'https://testnet.ckbapp.dev/rpc',                              methods:CKB_METHODS,   rpcType:'ckb'   },
-  { id:'ckb-light',   label:'Wyltek Light Client',  shortLabel:'Light ✦',  url:'https://wyltek-rpc.toastmanau.workers.dev/ckb-light',         methods:LIGHT_METHODS, rpcType:'light' },
-  { id:'fiber',       label:'Wyltek Fiber',         shortLabel:'Fiber 🌐', url:'https://wyltek-rpc.toastmanau.workers.dev/fiber',             methods:FIBER_METHODS, rpcType:'fiber' },
+  { id:'ckb-light',   label:'Wyltek Light Client',  shortLabel:'Light ✦',  url:'https://wyltek-rpc.toastman-one.workers.dev/ckb-light',         methods:LIGHT_METHODS, rpcType:'light' },
+  { id:'fiber',       label:'Wyltek Fiber',         shortLabel:'Fiber 🌐', url:'https://wyltek-rpc.toastman-one.workers.dev/fiber',             methods:FIBER_METHODS, rpcType:'fiber' },
   { id:'custom',      label:'Custom URL',           shortLabel:'Custom',   url:'',                                                             methods:CKB_METHODS,   rpcType:'ckb'   },
 ]
 

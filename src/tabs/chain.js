@@ -280,7 +280,7 @@ const ENDPOINTS = [
   { label: 'CKB Mainnet (public)',  url: 'https://mainnet.ckbapp.dev/rpc',       type: 'ckb'   },
   { label: 'CKB Testnet (public)',  url: 'https://testnet.ckbapp.dev/rpc',       type: 'ckb'   },
   { label: 'CKB Mainnet (nervos)',  url: 'https://mainnet.ckb.dev/rpc',          type: 'ckb'   },
-  { label: 'Wyltek Fiber (Worker)', url: 'https://wyltek-rpc.toastmanau.workers.dev/fiber', type: 'fiber' },
+  { label: 'Wyltek Fiber (Worker)', url: 'https://wyltek-rpc.toastman-one.workers.dev/fiber', type: 'fiber' },
   { label: 'Custom…',              url: '',                                       type: 'ckb'   },
 ]
 
