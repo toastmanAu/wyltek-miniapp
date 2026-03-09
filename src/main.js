@@ -335,7 +335,7 @@ function initFeedbackButton() {
       <div class="fb-type-row">
         <button class="fb-type-btn active" data-type="bug">🐛 Bug</button>
         <button class="fb-type-btn" data-type="suggestion">💡 Idea</button>
-        <button class="fb-type-btn" data-type="praise">👍 Praise</button>
+        <button class="fb-type-btn lobster-btn" data-type="praise"><img src="https://wyltekindustries.com/kernel-avatar.png" alt="praise" style="width:1.1rem;height:1.1rem;vertical-align:middle;border-radius:3px;object-fit:cover;margin-right:0.25rem">Praise</button>
       </div>
       <textarea id="fb-message" class="fb-textarea"
         placeholder="Describe the bug, idea, or feedback…" rows="4"></textarea>

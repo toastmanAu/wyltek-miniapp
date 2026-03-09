@@ -44,15 +44,21 @@ async function loadResearch(search = '', filter = '') {
     let tasks = []
     const match = text.match(/const RESEARCH_TASKS\s*=\s*(\[[\s\S]*?\]);/)
     if (match) {
-      try { tasks = JSON.parse(match[1]) } catch {}
+      try {
+        // Strip trailing commas before ] or } (JS allows, JSON doesn't)
+        const clean = match[1].replace(/,(\s*[}\]])/g, '$1')
+        tasks = JSON.parse(clean)
+      } catch (e) {
+        console.warn('[Research] JSON parse failed:', e.message)
+      }
     }
 
     let filtered = tasks
     if (search) {
       const q = search.toLowerCase()
       filtered = filtered.filter(t =>
-        t.title?.toLowerCase().includes(q) ||
-        t.description?.toLowerCase().includes(q) ||
+        t.goal?.toLowerCase().includes(q) ||
+        t.id?.toLowerCase().includes(q) ||
         t.tags?.some(tag => tag.toLowerCase().includes(q))
       )
     }
@@ -71,7 +77,7 @@ async function loadResearch(search = '', filter = '') {
 
     listEl.innerHTML = filtered.slice(0, 40).map(t => `
       <div class="research-item" data-id="${t.id}">
-        <div class="research-item-title">${t.title || t.id}</div>
+        <div class="research-item-title">${t.goal && t.goal !== '|' ? t.goal : t.id.replace(/-/g,' ')}</div>
         <div class="research-item-meta">
           <span>${statusDot(t.status)}${t.status || ''}</span>
           ${t.priority ? `<span>${t.priority}</span>` : ''}
