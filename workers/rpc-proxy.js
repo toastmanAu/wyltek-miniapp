@@ -128,18 +128,17 @@ export default {
         // Telegram intercepts this link, opens the bot, passes startapp to mini app
         const encoded = btoa(address).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
         const tgLink = `https://t.me/WyltekIndustriesBot?startapp=jauth_${encoded}`
-        return new Response(`
-          <!doctype html><html><head>
+        return new Response(`<!doctype html><html><head>
+          <meta charset="utf-8">
           <meta name="viewport" content="width=device-width,initial-scale=1">
           <meta http-equiv="refresh" content="1; url=${tgLink}">
           </head><body style="font-family:-apple-system,sans-serif;text-align:center;padding:60px 20px;background:#0f1117;color:#fff">
-          <div style="font-size:64px;margin-bottom:16px">✅</div>
+          <div style="font-size:64px;margin-bottom:16px">&#x2705;</div>
           <h2 style="color:#4ade80;margin:0 0 12px">Wallet Connected!</h2>
-          <p style="color:#94a3b8;margin:0 0 32px">Returning to Telegram…</p>
+          <p style="color:#94a3b8;margin:0 0 32px">Returning to Telegram&#x2026;</p>
           <a href="${tgLink}" style="display:inline-block;padding:12px 24px;background:#4ade80;color:#0f1117;border-radius:8px;text-decoration:none;font-weight:600">Open Telegram</a>
           <script>setTimeout(() => { window.location.href = '${tgLink}' }, 800)</script>
-          </body></html>
-        `, { headers: { 'Content-Type': 'text/html' } })
+          </body></html>`, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
       } catch (err) {
         console.error('[joyid-callback] parse error:', err.message)
         // Show debug page instead of black screen
