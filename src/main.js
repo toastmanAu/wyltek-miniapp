@@ -264,18 +264,27 @@ authBadge.addEventListener('click', async () => {
 
 // ── Boot ──────────────────────────────────────────────────────────
 async function boot() {
-  // Check for JoyID auth result in URL hash (legacy fallback)
+  // Check for JoyID auth result — two sources:
+  // 1. URL hash (legacy fallback)
+  // 2. Telegram startapp param: t.me/WyltekIndustriesBot?startapp=jauth_<base64>
   const hash = location.hash || ''
-  if (hash.startsWith('#jauth_')) {
+  const jauthStartParam = tg?.initDataUnsafe?.start_param || ''
+  const jauthRaw = hash.startsWith('#jauth_') ? hash.slice(7)
+                 : jauthStartParam.startsWith('jauth_') ? jauthStartParam.slice(6)
+                 : null
+  if (jauthRaw) {
     try {
-      const b64 = hash.slice(7).replace(/-/g, '+').replace(/_/g, '/')
+      const b64 = jauthRaw.replace(/-/g, '+').replace(/_/g, '/')
       const address = atob(b64)
       if (address.startsWith('ckb1') || address.startsWith('ckt1')) {
         localStorage.setItem('wyltek_address', address)
+        console.log('[boot] JoyID auth from startapp/hash:', address)
         cancelAuth()
-        history.replaceState(null, '', location.pathname)
+        if (hash) history.replaceState(null, '', location.pathname)
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[boot] Failed to decode jauth param:', e.message)
+    }
   }
 
   const saved = localStorage.getItem('wyltek_address')

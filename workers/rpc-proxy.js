@@ -123,16 +123,21 @@ export default {
           console.log('[joyid-callback] stored in KV for token', token.slice(0, 8))
         }
 
-        // Show success page — user taps "Back to Telegram" manually
-        // (Can't auto-redirect into TG WebView from external browser)
+        // Redirect to Telegram via t.me/BotName?startapp= deeplink
+        // (No shortname needed — works for any bot with a menu button)
+        // Telegram intercepts this link, opens the bot, passes startapp to mini app
+        const encoded = btoa(address).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+        const tgLink = `https://t.me/WyltekIndustriesBot?startapp=jauth_${encoded}`
         return new Response(`
           <!doctype html><html><head>
           <meta name="viewport" content="width=device-width,initial-scale=1">
-          </head><body style="font-family:-apple-system,sans-serif;text-align:center;padding:60px 20px;background:#0f1117;color:#fff;min-height:100vh;box-sizing:border-box">
+          <meta http-equiv="refresh" content="1; url=${tgLink}">
+          </head><body style="font-family:-apple-system,sans-serif;text-align:center;padding:60px 20px;background:#0f1117;color:#fff">
           <div style="font-size:64px;margin-bottom:16px">✅</div>
           <h2 style="color:#4ade80;margin:0 0 12px">Wallet Connected!</h2>
-          <p style="color:#94a3b8;margin:0 0 32px;font-size:15px">Switch back to Telegram —<br>your wallet is now linked.</p>
-          <p style="color:#64748b;font-size:13px">You can close this tab.</p>
+          <p style="color:#94a3b8;margin:0 0 32px">Returning to Telegram…</p>
+          <a href="${tgLink}" style="display:inline-block;padding:12px 24px;background:#4ade80;color:#0f1117;border-radius:8px;text-decoration:none;font-weight:600">Open Telegram</a>
+          <script>setTimeout(() => { window.location.href = '${tgLink}' }, 800)</script>
           </body></html>
         `, { headers: { 'Content-Type': 'text/html' } })
       } catch (err) {
