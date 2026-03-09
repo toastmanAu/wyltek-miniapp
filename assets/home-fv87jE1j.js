@@ -1,4 +1,4 @@
-import{s as r}from"./supabase-B4HPT40D.js";import{n as c}from"./index-CnO4aS20.js";async function m(e,t){var s,o,l;if(!t.address){e.innerHTML=`
+import{s as r}from"./supabase-B4HPT40D.js";import{n as c}from"./index-8bSl6CIM.js";async function m(e,t){var s,o,l;if(!t.address){e.innerHTML=`
       <div class="welcome-wrap">
         <img src="/wyltek-mark.png" class="welcome-logo" alt="Wyltek">
         <h1 class="welcome-title">Wyltek Industries</h1>
