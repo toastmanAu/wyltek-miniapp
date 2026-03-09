@@ -226,7 +226,27 @@ export default {
   }
 }
 
+// Methods blocked from public access (write/spend operations)
+const BLOCKED_METHODS = new Set([
+  // Fiber — payment/channel write ops
+  'send_payment', 'init_payment', 'open_channel', 'close_channel',
+  'shutdown_channel', 'update_channel', 'add_tlc', 'remove_tlc',
+  'accept_channel', 'abandon_channel',
+  // CKB — nothing dangerous here since no key, but block debug/miner
+  'generate_block', 'generate_block_with_template', 'submit_block',
+  'local_node_info', 'get_raw_tx_pool',
+  // BTC write ops
+  'sendrawtransaction', 'sendtoaddress', 'sendmany',
+  'walletpassphrase', 'importprivkey', 'dumpprivkey',
+])
+
 async function callTunnel(chain, body, env) {
+  // Block dangerous write methods
+  const method = body?.method?.toLowerCase?.() || ''
+  if (BLOCKED_METHODS.has(method)) {
+    throw new Error(`Method '${body.method}' is not available via public API`)
+  }
+
   const host = TUNNEL_HOSTS[chain]
   if (!host) throw new Error(`Unknown endpoint: ${chain}`)
 
