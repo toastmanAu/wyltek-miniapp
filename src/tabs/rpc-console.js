@@ -183,6 +183,190 @@ const ENDPOINTS = [
   { id:'custom',      label:'Custom URL',           shortLabel:'Custom',   url:'',                                                             methods:CKB_METHODS,   rpcType:'ckb'   },
 ]
 
+// ── Clipboard ─────────────────────────────────────────────────────
+const CLIP_KEY    = 'rpc_clipboard_v1'
+const CLIP_SLOTS  = 8
+
+function loadClip() {
+  try { return JSON.parse(localStorage.getItem(CLIP_KEY)) || Array(CLIP_SLOTS).fill(null) }
+  catch { return Array(CLIP_SLOTS).fill(null) }
+}
+function saveClip(slots) {
+  localStorage.setItem(CLIP_KEY, JSON.stringify(slots))
+}
+function autoLabel(val) {
+  if (!val) return 'empty'
+  const s = String(val)
+  if (/^0x[0-9a-f]{64}$/i.test(s)) return 'hash'
+  if (/^0x[0-9a-f]{63}$/i.test(s)) return 'pubkey'
+  if (/^ckb1[a-z0-9]{60,}/i.test(s)) return 'addr'
+  if (/^ckt1[a-z0-9]{60,}/i.test(s)) return 'testnet-addr'
+  if (/^0x[0-9a-f]{1,16}$/.test(s)) return 'hex'
+  if (/^\d+$/.test(s)) return 'number'
+  if (s.startsWith('{') || s.startsWith('[')) return 'json'
+  return 'value'
+}
+function clipSlotShort(slot) {
+  if (!slot) return '—'
+  const v = String(slot.value)
+  return v.length > 22 ? v.slice(0,10)+'…'+v.slice(-6) : v
+}
+
+function renderClipboard() {
+  const wrap = document.getElementById('rpc-clip-wrap')
+  if (!wrap) return
+  const slots = loadClip()
+  const filled = slots.filter(Boolean).length
+
+  wrap.innerHTML = `
+    <div class="rpc-block rpc-clip-block">
+      <div class="rpc-clip-hdr" id="rpc-clip-toggle">
+        <div class="rpc-block-label">📋 Clipboard <span class="rpc-clip-count">(${filled}/${CLIP_SLOTS})</span></div>
+        <span class="rpc-clip-chevron" id="rpc-clip-chev">▾</span>
+      </div>
+      <div class="rpc-clip-tray" id="rpc-clip-tray" style="display:none">
+        ${slots.map((slot, i) => `
+          <div class="rpc-clip-slot${slot?' filled':' empty'}" data-slot="${i}">
+            <div class="rpc-clip-slot-meta">
+              <span class="rpc-clip-slot-num">${i+1}</span>
+              <span class="rpc-clip-slot-label">${slot ? slot.label : 'empty'}</span>
+            </div>
+            <div class="rpc-clip-slot-val">${clipSlotShort(slot)}</div>
+            ${slot ? `<div class="rpc-clip-slot-actions">
+              <button class="rpc-clip-btn use" data-slot="${i}" title="Copy to clipboard">Copy</button>
+              <button class="rpc-clip-btn paste" data-slot="${i}" title="Paste into current param field">Paste</button>
+              <button class="rpc-clip-btn clr" data-slot="${i}" title="Clear">✕</button>
+            </div>` : `<div class="rpc-clip-slot-actions">
+              <button class="rpc-clip-btn save-here" data-slot="${i}">Save here</button>
+            </div>`}
+          </div>
+        `).join('')}
+        <button class="rpc-tiny-btn rpc-clip-clear-all" id="rpc-clip-clear-all">Clear all</button>
+      </div>
+    </div>
+  `
+
+  // Toggle tray
+  const tray = document.getElementById('rpc-clip-tray')
+  const chev = document.getElementById('rpc-clip-chev')
+  const open = localStorage.getItem('rpc_clip_open') === '1'
+  if (open) { tray.style.display = 'block'; chev.textContent = '▴' }
+
+  document.getElementById('rpc-clip-toggle')?.addEventListener('click', () => {
+    const visible = tray.style.display !== 'none'
+    tray.style.display = visible ? 'none' : 'block'
+    chev.textContent = visible ? '▾' : '▴'
+    localStorage.setItem('rpc_clip_open', visible ? '0' : '1')
+  })
+
+  // Copy slot value to system clipboard
+  wrap.querySelectorAll('.rpc-clip-btn.use').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation()
+      const slots = loadClip()
+      const slot = slots[btn.dataset.slot]
+      if (!slot) return
+      navigator.clipboard?.writeText(slot.value)
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+      btn.textContent = '✓'
+      setTimeout(() => { btn.textContent = 'Copy' }, 1200)
+    })
+  })
+
+  // Paste into focused param field
+  wrap.querySelectorAll('.rpc-clip-btn.paste').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation()
+      const slots = loadClip()
+      const slot = slots[btn.dataset.slot]
+      if (!slot) return
+      // Find the focused or last-touched param field
+      const fields = document.querySelectorAll('.rpc-pf')
+      const focused = [...fields].find(f => f === document.activeElement) || fields[fields.length-1]
+      if (focused) {
+        focused.value = slot.value
+        focused.dispatchEvent(new Event('input'))
+        window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+      }
+    })
+  })
+
+  // Clear a slot
+  wrap.querySelectorAll('.rpc-clip-btn.clr').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation()
+      const slots = loadClip()
+      slots[btn.dataset.slot] = null
+      saveClip(slots)
+      renderClipboard()
+    })
+  })
+
+  // Save pending value to a specific empty slot
+  wrap.querySelectorAll('.rpc-clip-btn.save-here').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation()
+      const pending = window._rpcClipPending
+      if (!pending) return
+      const slots = loadClip()
+      slots[btn.dataset.slot] = { value: pending.value, label: pending.label }
+      saveClip(slots)
+      delete window._rpcClipPending
+      renderClipboard()
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    })
+  })
+
+  // Clear all
+  document.getElementById('rpc-clip-clear-all')?.addEventListener('click', e => {
+    e.stopPropagation()
+    saveClip(Array(CLIP_SLOTS).fill(null))
+    renderClipboard()
+  })
+}
+
+// Show save-to-slot picker — called when user taps Copy on a result
+function clipSavePrompt(value, label) {
+  window._rpcClipPending = { value, label }
+  const slots = loadClip()
+  const tray = document.getElementById('rpc-clip-tray')
+  if (!tray) return
+
+  // Open tray and scroll to it
+  tray.style.display = 'block'
+  document.getElementById('rpc-clip-chev').textContent = '▴'
+  localStorage.setItem('rpc_clip_open', '1')
+  tray.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+
+  // Highlight empty slots as targets; mark pending
+  tray.querySelectorAll('.rpc-clip-slot.empty .save-here').forEach(btn => {
+    btn.textContent = '← Save here'
+    btn.style.background = 'var(--accent)'
+    btn.style.color = '#000'
+  })
+  // Also allow overwriting filled slots via long-press (handled via contextmenu/pointerdown)
+  tray.querySelectorAll('.rpc-clip-slot.filled').forEach(slotEl => {
+    slotEl.title = 'Long-press to overwrite with pending value'
+    slotEl.addEventListener('pointerdown', function onDown(e) {
+      const timer = setTimeout(() => {
+        const i = slotEl.dataset.slot
+        const slots = loadClip()
+        const pending = window._rpcClipPending
+        if (pending) {
+          slots[i] = { value: pending.value, label: pending.label }
+          saveClip(slots)
+          delete window._rpcClipPending
+          renderClipboard()
+          window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+        }
+        slotEl.removeEventListener('pointerdown', onDown)
+      }, 600)
+      slotEl.addEventListener('pointerup', () => clearTimeout(timer), { once: true })
+      slotEl.addEventListener('pointercancel', () => clearTimeout(timer), { once: true })
+    })
+  })
+}
+
 // ── Module state ──────────────────────────────────────────────────
 let rpcHistory  = []
 let currentEp   = ENDPOINTS[0]
@@ -233,6 +417,7 @@ export async function renderRPCConsole(el, _state) {
       </button>
 
       <div id="rpc-result"></div>
+      <div id="rpc-clip-wrap"></div>
       <div id="rpc-hist-wrap"></div>
     </div>
   `
@@ -249,6 +434,7 @@ export async function renderRPCConsole(el, _state) {
 
   document.getElementById('rpc-send').addEventListener('click', executeCall)
   renderHistory()
+  renderClipboard()
 }
 
 // ── Endpoint pills ────────────────────────────────────────────────
@@ -492,6 +678,14 @@ function renderResult(el, entry) {
   document.getElementById('rpc-copy')?.addEventListener('click', () => {
     navigator.clipboard?.writeText(json)
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    // Offer to save to clipboard tray
+    const label = autoLabel(entry.result !== null && entry.result !== undefined
+      ? (typeof entry.result === 'string' ? entry.result : JSON.stringify(entry.result))
+      : json)
+    const val = typeof entry.result === 'string' ? entry.result : json
+    clipSavePrompt(val, label)
+    const copyBtn = document.getElementById('rpc-copy')
+    if (copyBtn) { copyBtn.textContent = '✓ Saved?'; setTimeout(()=>{ copyBtn.textContent='Copy' },1500) }
   })
   document.getElementById('rpc-expand')?.addEventListener('click', e => {
     el.querySelector('.rpc-pre')?.classList.remove('trimmed')

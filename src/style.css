@@ -939,3 +939,50 @@ body:has(.sub-nav.visible) #tab-content {
 .rpc-hist-s   { font-size: 0.68rem; font-weight: 700; }
 .rpc-hist-s.ok  { color: var(--green); }
 .rpc-hist-s.err { color: #ef4444; }
+
+/* ── RPC Clipboard ────────────────────────────────────────────── */
+.rpc-clip-block { padding: 0 !important; overflow: hidden; }
+.rpc-clip-hdr {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.65rem 0.9rem; cursor: pointer;
+  user-select: none; -webkit-user-select: none;
+}
+.rpc-clip-hdr:active { background: var(--surface2); }
+.rpc-clip-chevron { font-size: 0.8rem; color: var(--text3); transition: transform 0.2s; }
+.rpc-clip-count { font-size: 0.72rem; color: var(--accent); font-weight: 600; margin-left: 0.3rem; }
+.rpc-clip-tray { padding: 0 0.7rem 0.7rem; display: flex; flex-direction: column; gap: 0.45rem; }
+.rpc-clip-slot {
+  border: 1px solid var(--border2); border-radius: 8px;
+  padding: 0.55rem 0.7rem; background: var(--surface);
+  transition: border-color 0.15s;
+}
+.rpc-clip-slot.filled { border-color: var(--accent); }
+.rpc-clip-slot.empty { opacity: 0.55; }
+.rpc-clip-slot-meta {
+  display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.2rem;
+}
+.rpc-clip-slot-num {
+  background: var(--surface2); border-radius: 4px;
+  font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.35rem;
+  color: var(--text3);
+}
+.rpc-clip-slot-label {
+  font-size: 0.68rem; font-weight: 600; color: var(--accent2); text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.rpc-clip-slot-val {
+  font-size: 0.75rem; color: var(--text2); font-family: monospace;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 0.35rem;
+}
+.rpc-clip-slot-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.rpc-clip-btn {
+  font-size: 0.68rem; padding: 0.2rem 0.55rem; border-radius: 5px;
+  border: 1px solid var(--border2); background: var(--surface2);
+  color: var(--text2); cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.rpc-clip-btn.use:active, .rpc-clip-btn.use:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+.rpc-clip-btn.paste:active, .rpc-clip-btn.paste:hover { background: var(--purple); color: #fff; border-color: var(--purple); }
+.rpc-clip-btn.clr:active, .rpc-clip-btn.clr:hover { background: var(--red, #e44); color: #fff; border-color: transparent; }
+.rpc-clip-btn.save-here { background: var(--surface2); color: var(--text3); width: 100%; text-align: center; }
+.rpc-clip-clear-all { margin-top: 0.3rem; align-self: flex-end; }
