@@ -10,6 +10,8 @@ import { initJoyID, authWithJoyID } from './auth.js'
 
 // ── Lazy tab renderers ────────────────────────────────────────────
 const renderers = {
+  // Home (standalone, no sub-tabs)
+  'home':         () => import('./tabs/splash.js').then(m => m.renderSplash),
   // Chain section
   'chain.ckb':    () => import('./tabs/chain.js').then(m => m.renderCKBTab),
   'chain.btc':    () => import('./tabs/chain.js').then(m => m.renderBTCTab),
@@ -32,6 +34,7 @@ const renderers = {
 
 // ── Sub-nav definitions ───────────────────────────────────────────
 const SUB_TABS = {
+  home: [],   // no sub-tabs — full-page splash
   chain: [
     { id: 'chain.ckb',   icon: '⚡', label: 'CKB',     color: 'var(--accent)' },
     { id: 'chain.btc',   icon: '₿',  label: 'Bitcoin',  color: '#f7931a' },
@@ -59,6 +62,7 @@ const SUB_TABS = {
 
 // Default sub-tab for each primary tab
 const DEFAULT_SUB = {
+  home:     'home',
   chain:    'chain.ckb',
   tools:    'tools.home',
   social:   'social.lounge',
@@ -138,6 +142,12 @@ async function navigateSub(subId) {
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === primary)
   })
+
+  // Home button in header — show on all non-home pages
+  const homeBtn = document.getElementById('home-btn')
+  if (homeBtn) {
+    homeBtn.classList.toggle('at-home', primary === 'home')
+  }
 
   // Update sub-nav
   renderSubNav(primary, subId)
@@ -243,22 +253,29 @@ async function boot() {
   // Transitions — wire tool-btn[data-tab] clicks
   initTransitions(navigate)
 
-  // Logo easter egg
-  document.querySelector('.logo-mark')?.addEventListener('click', () => {
-    const logo = document.querySelector('.logo-mark')
-    if (!logo) return
-    logo.classList.remove('glitch')
-    void logo.offsetWidth
-    logo.classList.add('glitch')
-    tg?.HapticFeedback?.impactOccurred('heavy')
-    spawnBurst(logo.getBoundingClientRect())
+  // Logo easter egg on home page, home button everywhere else
+  document.getElementById('home-btn')?.addEventListener('click', () => {
+    if (state.primary === 'home') {
+      // On home — easter egg
+      const logo = document.querySelector('.logo-mark')
+      if (!logo) return
+      logo.classList.remove('glitch')
+      void logo.offsetWidth
+      logo.classList.add('glitch')
+      tg?.HapticFeedback?.impactOccurred('heavy')
+      spawnBurst(logo.getBoundingClientRect())
+    } else {
+      // Anywhere else — go home
+      navigate('home')
+      tg?.HapticFeedback?.impactOccurred('light')
+    }
   })
 
   // Deeplink: ?startapp=chain.ckb or ?startapp=chain
   const startParam = tg?.initDataUnsafe?.start_param || ''
   const startSub   = renderers[startParam]   ? startParam
                    : DEFAULT_SUB[startParam] ? DEFAULT_SUB[startParam]
-                   : 'chain.ckb'
+                   : 'home'
 
   await navigate(startSub)
 }
