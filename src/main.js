@@ -16,7 +16,7 @@ const renderers = {
   'chain.ckb':    () => import('./tabs/chain.js').then(m => m.renderCKBTab),
   'chain.btc':    () => import('./tabs/chain.js').then(m => m.renderBTCTab),
   'chain.fiber':  () => import('./tabs/fiber.js').then(m => m.renderFiber),
-  'chain.rpc':    () => import('./tabs/chain.js').then(m => m.renderRPCTab),
+  'chain.rpc':    () => import('./tabs/rpc-console.js').then(m => m.renderRPCConsole),
   // Tools section
   'tools.home':   () => import('./tabs/home.js').then(m => m.renderHome),
   'tools.wallet': () => import('./tabs/wallet.js').then(m => m.renderWallet),
