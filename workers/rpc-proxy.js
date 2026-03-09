@@ -215,7 +215,8 @@ async function callBTC(env, body) {
   const host = TUNNEL_HOSTS['btc']
   const tunnelUrl = env.TUNNEL_URL || TUNNEL_BASE
   const user = env.BTC_RPC_USER || 'toastman'
-  const pass = env.BTC_RPC_PASS || 'nervos123'
+  const pass = env.BTC_RPC_PASS
+  if (!pass) throw new Error('BTC_RPC_PASS not configured')
 
   const res = await fetch(tunnelUrl, {
     method: 'POST',
